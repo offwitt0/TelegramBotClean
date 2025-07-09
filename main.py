@@ -7,11 +7,9 @@ import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
-
 # ==================== CONFIGURATION ====================
 # PUT YOUR TOKENS AND PROMPT HERE:
-
-TELEGRAM_BOT_TOKEN = ("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # PUT YOUR PROMPT HERE:
