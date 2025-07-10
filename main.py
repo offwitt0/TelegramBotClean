@@ -3,11 +3,9 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import openai
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-
 from urllib.parse import quote
-from datetime import timedelta
 
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -27,10 +25,7 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
     )
 
 def get_prompt():
-    today = datetime.now()
-    today_str = today.strftime("%Y-%m-%d")
-
-    return f"""
+    return """
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
@@ -55,28 +50,13 @@ embeddings = OpenAIEmbeddings()
 vectorstore = FAISS.load_local(
     "guest_kb_vectorstore", 
     embeddings,
-    allow_dangerous_deserialization=True  # ✅ Required by LangChain 0.2+
+    allow_dangerous_deserialization=True
 )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    today = datetime.today().date()
-    checkin = today + timedelta(days=3)
-    checkout = today + timedelta(days=6)
     user_message = update.message.text
     user_id = str(update.effective_user.id)
 
-    # Generate example links
-    zamalek = generate_airbnb_link("Zamalek", checkin, checkout)
-    maadi = generate_airbnb_link("Maadi", checkin, checkout)
-    garden_city = generate_airbnb_link("Garden City", checkin, checkout)
-# Inject into prompt
-    custom_links = f"""
-    Example Airbnb area links:
-
-    [Explore Zamalek]({zamalek})  
-    [Explore Maadi]({maadi})  
-    [Explore Garden City]({garden_city})  
-"""
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     # Memory
@@ -87,10 +67,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
 
-    # Search SOP vectorstore
+    # Load vectorstore context
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    print("🔎 Retrieved Context:\n", kb_context)
+
+    # Airbnb Link Suggestions
+    today = datetime.today().date()
+    checkin = today + timedelta(days=3)
+    checkout = today + timedelta(days=6)
+
+    links = {
+        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
+    }
+
+    custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     try:
         response = openai.ChatCompletion.create(
@@ -99,13 +91,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 {
                     "role": "system",
                     "content": f"""
-                    {get_prompt()}
-                    {custom_links}
-                    Use the following internal SOP knowledge base to answer user questions clearly, accurately, and professionally — even if the user does not mention a destination or dates:
-                    {kb_context}
-                    If you find a match in the context, use it directly in your reply.
-                    Do not ignore context. If check-in or pet policies are found, answer them directly.
-                    """
+{get_prompt()}
+
+Use this internal SOP knowledge base if helpful:
+{kb_context}
+
+Some suggested areas:
+{custom_links}
+"""
                 },
                 *context.chat_data["chat_history"][user_id]
             ],
@@ -115,7 +108,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply = response.choices[0].message.content.strip()
         await update.message.reply_text(reply)
-
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
 
     except Exception as e:
@@ -124,10 +116,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     print("🤖 Bot starting...")
     app.run_polling()
 
