@@ -134,7 +134,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"{get_prompt()}\n\nUse this context if helpful:\n{kb_context}"},
+                {
+                    "role": "system",
+                    "content": f"{get_prompt()}\n\nUse this context if helpful:\n{kb_context}"
+                },
                 *context.chat_data["chat_history"][user_id]
             ],
             max_tokens=1000,
