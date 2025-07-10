@@ -5,7 +5,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import openai
 from datetime import datetime
 from dotenv import load_dotenv
-
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
 load_dotenv()
 
 # ==================== CONFIGURATION ====================
@@ -102,28 +103,32 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🏨 Welcome to your vacation rental assistant! I'm here to help you find the perfect stay in Cairo, Egypt. Where would you like to travel and when?"
     )
 
+embeddings = OpenAIEmbeddings()
+vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
 
-    # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
-    # Initialize message history
+    # Memory
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
-
     if user_id not in context.chat_data["chat_history"]:
         context.chat_data["chat_history"][user_id] = []
 
-    # Append user message to chat history
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+
+    # Search SOP vectorstore
+    relevant_docs = vectorstore.similarity_search(user_message, k=3)
+    kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": get_prompt()},
+                {"role": "system", "content": f"{get_prompt()}\n\nUse this context if helpful:\n{kb_context}"},
                 *context.chat_data["chat_history"][user_id]
             ],
             max_tokens=1000,
@@ -133,7 +138,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = response.choices[0].message.content.strip()
         await update.message.reply_text(reply)
 
-        # Save assistant reply to memory
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
 
     except Exception as e:
