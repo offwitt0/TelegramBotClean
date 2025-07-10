@@ -6,6 +6,9 @@ import openai
 from datetime import datetime
 from dotenv import load_dotenv
 
+from urllib.parse import quote
+from datetime import timedelta
+
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
@@ -14,6 +17,14 @@ load_dotenv()
 # ==================== CONFIGURATION ====================
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
+    area_encoded = quote(area)
+    return (
+        f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
+        f"?checkin={checkin}&checkout={checkout}"
+        f"&adults={adults}&children={children}&infants={infants}&pets={pets}"
+    )
 
 def get_prompt():
     today = datetime.now()
@@ -48,9 +59,24 @@ vectorstore = FAISS.load_local(
 )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    today = datetime.today().date()
+    checkin = today + timedelta(days=3)
+    checkout = today + timedelta(days=6)
     user_message = update.message.text
     user_id = str(update.effective_user.id)
 
+    # Generate example links
+    zamalek = generate_airbnb_link("Zamalek", checkin, checkout)
+    maadi = generate_airbnb_link("Maadi", checkin, checkout)
+    garden_city = generate_airbnb_link("Garden City", checkin, checkout)
+# Inject into prompt
+    custom_links = f"""
+    Example Airbnb area links:
+
+    [Explore Zamalek]({zamalek})  
+    [Explore Maadi]({maadi})  
+    [Explore Garden City]({garden_city})  
+"""
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     # Memory
@@ -74,6 +100,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "role": "system",
                     "content": f"""
                     {get_prompt()}
+                    {custom_links}
                     Use the following internal SOP knowledge base to answer user questions clearly, accurately, and professionally — even if the user does not mention a destination or dates:
                     {kb_context}
                     If you find a match in the context, use it directly in your reply.
