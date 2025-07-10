@@ -3,16 +3,15 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import openai
-import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
+
 load_dotenv()
+
 # ==================== CONFIGURATION ====================
-# PUT YOUR TOKENS AND PROMPT HERE:
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# PUT YOUR PROMPT HERE:
 def get_prompt():
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
@@ -94,54 +93,59 @@ If the user asks about anything unrelated to travel, hotel bookings, or vacation
 
 # ==================== BOT CODE ====================
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize OpenAI client
 openai.api_key = OPENAI_API_KEY
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command"""
-    await update.message.reply_text("🏨 Welcome to your vacation rental assistant! I'm here to help you find the perfect stay in Cairo, Egypt. Where would you like to travel and when?")
+    await update.message.reply_text(
+        "🏨 Welcome to your vacation rental assistant! I'm here to help you find the perfect stay in Cairo, Egypt. Where would you like to travel and when?"
+    )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle user messages"""
     user_message = update.message.text
+    user_id = str(update.effective_user.id)
 
-    # Show typing
+    # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
+    # Initialize message history
+    if "chat_history" not in context.chat_data:
+        context.chat_data["chat_history"] = {}
+
+    if user_id not in context.chat_data["chat_history"]:
+        context.chat_data["chat_history"][user_id] = []
+
+    # Append user message to chat history
+    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+
     try:
-        # Send to ChatGPT with your prompt
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": get_prompt()},
-                {"role": "user", "content": user_message}
+                *context.chat_data["chat_history"][user_id]
             ],
             max_tokens=1000,
             temperature=0.7
         )
 
-        # Send response back to user
         reply = response.choices[0].message.content.strip()
         await update.message.reply_text(reply)
+
+        # Save assistant reply to memory
+        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
 
     except Exception as e:
         logger.error(f"Error: {e}")
         await update.message.reply_text("❌ Sorry, something went wrong. Please try again.")
 
 def main():
-    """Run the bot"""
-    # Create bot application
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # Add handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Start bot
     print("🤖 Bot starting...")
     app.run_polling()
 
