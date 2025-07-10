@@ -1,3 +1,6 @@
 python-telegram-bot==20.7
 openai==0.28
 python-dotenv
+langchain
+faiss-cpu
+tiktoken
