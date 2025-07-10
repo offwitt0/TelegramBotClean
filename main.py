@@ -129,6 +129,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Search SOP vectorstore
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
+    print("🔎 Retrieved Context:\n", kb_context)
 
     try:
         response = openai.ChatCompletion.create(
@@ -136,7 +137,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             messages=[
                 {
                     "role": "system",
-                    "content": f"{get_prompt()}\n\nUse this context if helpful:\n{kb_context}"
+                    "content": f"""
+                    {get_prompt()}
+                    Use the following internal SOP knowledge base to answer user questions clearly, accurately, and professionally — even if the user does not mention a destination or dates:
+                    {kb_context}
+                    If you find a match in the context, use it directly in your reply.
+                    Do not ignore context. If check-in or pet policies are found, answer them directly.
+                    """
                 },
                 *context.chat_data["chat_history"][user_id]
             ],
