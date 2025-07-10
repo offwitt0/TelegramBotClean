@@ -5,8 +5,10 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import openai
 from datetime import datetime
 from dotenv import load_dotenv
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+
 load_dotenv()
 
 # ==================== CONFIGURATION ====================
@@ -104,7 +106,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 embeddings = OpenAIEmbeddings()
-vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings)
+vectorstore = FAISS.load_local(
+    "guest_kb_vectorstore", 
+    embeddings,
+    allow_dangerous_deserialization=True  # ✅ Required by LangChain 0.2+
+)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
