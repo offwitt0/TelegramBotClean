@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import openai
@@ -15,6 +16,10 @@ load_dotenv()
 # ==================== CONFIGURATION ====================
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Load listings data
+with open("listings.json", "r", encoding="utf-8") as f:
+    listings_data = json.load(f)
 
 def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
     area_encoded = quote(area)
@@ -53,13 +58,22 @@ vectorstore = FAISS.load_local(
     allow_dangerous_deserialization=True
 )
 
+def find_matching_listings(city, guests):
+    results = []
+    for listing in listings_data:
+        if listing["city_hint"].lower() == city.lower() and listing["guests"] >= guests:
+            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+            results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
+        if len(results) >= 3:
+            break
+    return results
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
-    # Memory
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
     if user_id not in context.chat_data["chat_history"]:
@@ -67,11 +81,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
 
-    # Load vectorstore context
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    # Airbnb Link Suggestions
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
@@ -81,8 +93,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
         "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
     }
-
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
+
+    # Optional auto-suggestion
+    if "cairo" in user_message.lower() and "aug" in user_message.lower():
+        listings = find_matching_listings("Cairo", 5)
+        if listings:
+            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+        else:
+            suggestions = ""
+    else:
+        suggestions = ""
 
     try:
         response = openai.ChatCompletion.create(
@@ -98,6 +119,7 @@ Use this internal SOP knowledge base if helpful:
 
 Some suggested areas:
 {custom_links}
+{suggestions}
 """
                 },
                 *context.chat_data["chat_history"][user_id]
