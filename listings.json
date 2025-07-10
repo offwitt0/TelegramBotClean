@@ -1,0 +1,253 @@
+[
+  {
+    "id": "310743",
+    "name": "Orabi khan: Prime Location in the Heart of Cairo",
+    "city_hint": "Cairo",
+    "guests": 5,
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "rating": 4.75,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Pets allowed",
+      "Wireless"
+    ],
+    "url": "https://anqakhans.holidayfuture.com/listings/310743"
+  },
+  {
+    "id": "fancy_pyramids_khan",
+    "name": "Fancy Pyramids' Khan: Giza's Gem",
+    "city_hint": "Giza",
+    "guests": 10,
+    "bedrooms": 4,
+    "bathrooms": 3,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Pyramids view"
+    ],
+    "url": ""
+  },
+  {
+    "id": "zamalek_sunny_khan",
+    "name": "Zamalek Sunny Khan",
+    "city_hint": "Zamalek",
+    "guests": 10,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Best views"
+    ],
+    "url": ""
+  },
+  {
+    "id": "othman_khan",
+    "name": "Othman Khan",
+    "city_hint": "Cairo",
+    "guests": 10,
+    "bedrooms": 5,
+    "bathrooms": 3,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Vintage Oasis"
+    ],
+    "url": ""
+  },
+  {
+    "id": "bohemian_khan",
+    "name": "The Bohemian Khan",
+    "city_hint": "Cairo",
+    "guests": 5,
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "dokki_khan",
+    "name": "Dokki Khan: Vibrant Experience",
+    "city_hint": "Dokki",
+    "guests": 6,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "rating": 4.9,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Pets allowed"
+    ],
+    "url": ""
+  },
+  {
+    "id": "dokki_peaceful_khan",
+    "name": "Dokki Peaceful Khan",
+    "city_hint": "Dokki",
+    "guests": 6,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "dreamy_maadi_khan",
+    "name": "Dreamy Maadi Khan",
+    "city_hint": "Maadi",
+    "guests": 5,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Pets allowed"
+    ],
+    "url": ""
+  },
+  {
+    "id": "maadi_suker_khan",
+    "name": "Maadi Suker Khan",
+    "city_hint": "Maadi",
+    "guests": 7,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "rating": 4.8,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Vintage Oasis"
+    ],
+    "url": ""
+  },
+  {
+    "id": "grand_museum_khan",
+    "name": "Grand Museum Khan",
+    "city_hint": "Giza",
+    "guests": 3,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.8,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "vintage_duplex_khan",
+    "name": "The Vintage Duplex Khan, Pyramids view",
+    "city_hint": "Giza",
+    "guests": 5,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "rating": 4.35,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Pyramids view"
+    ],
+    "url": ""
+  },
+  {
+    "id": "minimal_ancient_khan",
+    "name": "Minimal Ancient Khan",
+    "city_hint": "Cairo",
+    "guests": 3,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Pets allowed"
+    ],
+    "url": ""
+  },
+  {
+    "id": "suliman_khan",
+    "name": "Suliman Khan",
+    "city_hint": "Cairo",
+    "guests": 7,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "rating": 4.6,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "High ceiling",
+      "7 balconies"
+    ],
+    "url": ""
+  },
+  {
+    "id": "green_khan",
+    "name": "The Green Khan",
+    "city_hint": "Cairo",
+    "guests": 3,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.9,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "downtown_alia_khan",
+    "name": "Downtown Alia Khan",
+    "city_hint": "Cairo",
+    "guests": 5,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "rating": 5.0,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  }
+]
