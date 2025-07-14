@@ -141,15 +141,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🏨 Welcome! When are you planning to travel to Cairo?")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_message = update.message.text
+    print("📲 Telegram message received:", user_message)  # 👈 log here
+
     user_id = str(update.effective_user.id)
+
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
     if user_id not in context.chat_data["chat_history"]:
         context.chat_data["chat_history"][user_id] = []
 
-    user_message = update.message.text
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
     try:
         reply = generate_response(user_message)
         await update.message.reply_text(reply)
@@ -157,7 +162,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
-    print("📲 Telegram message received:", user_message)
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
