@@ -1,63 +1,58 @@
 import os
 import json
 import logging
-import threading
-import time
-from datetime import datetime, timedelta
-from urllib.parse import quote
-from dotenv import load_dotenv
-
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from email.message import EmailMessage
 import imaplib
 import smtplib
 import email
-import openai
-
-from langchain_community.embeddings import OpenAIEmbeddings
+from datetime import datetime, timedelta
+from urllib.parse import quote
+from email.message import EmailMessage
+from fastapi import FastAPI, Request
+from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from openai import OpenAI
 
-# ==================== LOAD ENV & CONFIG ====================
+# =================== LOAD CONFIG ===================
 load_dotenv()
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
-openai.api_key = OPENAI_API_KEY
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+if not OPENAI_API_KEY:
+    raise RuntimeError("❌ OPENAI_API_KEY is not set in environment variables.")
 
-# ==================== LOAD DATA ====================
+# =================== INIT ===================
+openai = OpenAI(api_key=OPENAI_API_KEY)
+app = FastAPI()
+telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
+
 with open("listings.json", "r", encoding="utf-8") as f:
     listings_data = json.load(f)
 
-embeddings = OpenAIEmbeddings()
-vectorstore = FAISS.load_local(
-    "guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True
-)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# ==================== UTILITIES ====================
+# =================== CORE FUNCTIONS ===================
 def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
     area_encoded = quote(area)
-    return (
-        f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-        f"?checkin={checkin}&checkout={checkout}"
-        f"&adults={adults}&children={children}&infants={infants}&pets={pets}"
-    )
+    return f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes?checkin={checkin}&checkout={checkout}&adults={adults}&children={children}&infants={infants}&pets={pets}"
 
 def get_prompt():
     return """
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-
 Only ignore a question if it's completely unrelated to travel (e.g., programming, politics, etc).
-
 Use the internal knowledge base provided to answer questions clearly and accurately. Be warm and helpful.
 """
 
@@ -71,20 +66,12 @@ def find_matching_listings(city, guests):
             break
     return results
 
-# ==================== SHARED MESSAGE PROCESSING ====================
-chat_history = {}
-
-def process_message(user_message, user_id):
-    if user_id not in chat_history:
-        chat_history[user_id] = []
-    chat_history[user_id].append({"role": "user", "content": user_message})
-
-    relevant_docs = vectorstore.similarity_search(user_message, k=3)
-    kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-
+def generate_response(user_message):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
+    relevant_docs = vectorstore.similarity_search(user_message, k=3)
+    kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     links = {
         "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
@@ -92,89 +79,100 @@ def process_message(user_message, user_id):
         "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
     }
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-
     listings = find_matching_listings("Cairo", 5)
     suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings) if listings else ""
 
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n{custom_links}\n{suggestions}"},
-            *chat_history[user_id]
+            {
+                "role": "system",
+                "content": f"{get_prompt()}\n\nUse this context if helpful:\n{kb_context}\n\n{custom_links}\n{suggestions}"
+            },
+            {"role": "user", "content": user_message}
         ],
         temperature=0.7,
         max_tokens=1000
     )
-    reply = response.choices[0].message.content.strip()
-    chat_history[user_id].append({"role": "assistant", "content": reply})
-    return reply
+    return response.choices[0].message.content.strip()
 
-# ==================== TELEGRAM ====================
+# =================== TELEGRAM ===================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🏨 Welcome to your vacation rental assistant! I'm here to help you find the perfect stay in Cairo, Egypt. Where would you like to travel and when?"
-    )
+    await update.message.reply_text("\ud83c\udfe8 Welcome! Tell me your vacation needs in Cairo.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
     user_message = update.message.text
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    reply = process_message(user_message, user_id)
+    reply = generate_response(user_message)
     await update.message.reply_text(reply)
 
-def run_telegram():
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("🤖 Telegram bot running...")
-    app.run_polling()
+telegram_app.add_handler(CommandHandler("start", start_command))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-# ==================== EMAIL ====================
+@app.post("/telegram-webhook")
+async def telegram_webhook(request: Request):
+    data = await request.json()
+    update = Update.de_json(data, telegram_app.bot)
+    await telegram_app.process_update(update)
+    return {"ok": True}
+
+# =================== EMAIL ===================
+def send_email(to_email, subject, body):
+    msg = EmailMessage()
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = to_email
+    msg["Subject"] = f"Re: {subject}"
+    msg.set_content(body)
+
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
+        smtp.starttls()
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
 def check_email():
-    mail = imaplib.IMAP4_SSL(IMAP_SERVER)
-    mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    mail.select("inbox")
+    try:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        mail.select("inbox")
+        status, messages = mail.search(None, '(UNSEEN)')
 
-    status, messages = mail.search(None, '(UNSEEN)')
-    for num in messages[0].split():
-        typ, msg_data = mail.fetch(num, '(RFC822)')
-        msg = email.message_from_bytes(msg_data[0][1])
-        from_email = email.utils.parseaddr(msg["From"])[1]
-        subject = msg["Subject"]
-        body = ""
+        for num in messages[0].split():
+            typ, msg_data = mail.fetch(num, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            from_email = email.utils.parseaddr(msg["From"])[1]
+            subject = msg["Subject"]
+            body = ""
 
-        if msg.is_multipart():
-            for part in msg.walk():
-                if part.get_content_type() == "text/plain":
-                    body = part.get_payload(decode=True).decode()
-        else:
-            body = msg.get_payload(decode=True).decode()
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        body = part.get_payload(decode=True).decode()
+            else:
+                body = msg.get_payload(decode=True).decode()
 
-        print(f"📩 Email from {from_email}: {subject}")
-        try:
-            reply = process_message(body, from_email)
-            msg_reply = EmailMessage()
-            msg_reply["From"] = EMAIL_ADDRESS
-            msg_reply["To"] = from_email
-            msg_reply["Subject"] = f"Re: {subject}"
-            msg_reply.set_content(reply)
+            print(f"\ud83d\udce9 Email from {from_email}: {subject}")
+            reply = generate_response(body)
+            send_email(from_email, subject, reply)
+            print("\u2705 Email replied.")
 
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
-                smtp.starttls()
-                smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                smtp.send_message(msg_reply)
-            print("✅ Email replied.")
-        except Exception as e:
-            print("❌ Error:", e)
-    mail.logout()
+        mail.logout()
+    except Exception as e:
+        logger.error(f"Email Error: {e}")
 
-def run_email():
-    print("📧 Email listener running...")
-    while True:
-        check_email()
-        time.sleep(30)
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    from threading import Thread
 
-# ==================== MAIN ====================
-if __name__ == "__main__":
-    threading.Thread(target=run_email, daemon=True).start()
-    run_telegram()
+    def run_email_loop():
+        import time
+        print("\ud83d\udce7 Email listener running...")
+        while True:
+            check_email()
+            time.sleep(15)  # Check every 15 seconds
+
+    def run_telegram_loop():
+        print("\ud83e\uddf0 Telegram bot running...")
+        telegram_app.run_polling()
+
+    Thread(target=run_email_loop).start()
+    Thread(target=run_telegram_loop).start()
