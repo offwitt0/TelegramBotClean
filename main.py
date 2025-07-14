@@ -71,6 +71,7 @@ def generate_response(user_message):
 
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
+    print("⚙️ generating response for:", user_message)
 
     links = {
         "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
@@ -90,7 +91,6 @@ def generate_response(user_message):
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
-
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
     msg = EmailMessage()
@@ -132,6 +132,7 @@ async def check_email_loop():
         except Exception as e:
             print("❌ Email error:", e)
         await asyncio.sleep(30)
+        print("📩 Email from", from_email, "Subject:", subject)     
 
 # ================== TELEGRAM ==================
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -156,6 +157,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
+    print("📲 Telegram message received:", user_message)
+
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
