@@ -177,8 +177,10 @@ async def start_all():
     asyncio.create_task(check_email_loop())
 
     print("🤖 Telegram bot initializing...")
-    await app.initialize()   # PREPARE the bot
-    await app.start()        # START it properly
+    await app.initialize()
+    await app.start()
+    asyncio.create_task(app.updater.start_polling())  # ✅ Start polling separately
+
 
 
 @fastapi_app.on_event("shutdown")
