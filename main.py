@@ -172,17 +172,20 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 fastapi_app = FastAPI()
 
 @fastapi_app.on_event("startup")
-async def startup_event():
+async def start_all():
     print("📧 Email listener running...")
     asyncio.create_task(check_email_loop())
+
     print("🤖 Telegram bot initializing...")
-    await app.initialize()
-    asyncio.create_task(app.start())
+    await app.initialize()   # PREPARE the bot
+    await app.start()        # START it properly
+
 
 @fastapi_app.on_event("shutdown")
-async def shutdown_event():
-    print("🔌 Shutting down Telegram bot...")
-    await app.shutdown()
+async def shutdown_all():
+    print("⛔ Shutting down bot...")
+    await app.stop()
+
 
 fastapi_app.add_middleware(
     CORSMiddleware,
