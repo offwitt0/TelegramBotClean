@@ -8,6 +8,5 @@ langchain-community
 fastapi
 uvicorn
 imaplib2
-smtplib
 email-validator
 telegram
