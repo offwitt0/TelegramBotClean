@@ -131,11 +131,10 @@ async def check_email_loop():
             mail.logout()
         except Exception as e:
             print("❌ Email error:", e)
-        await asyncio.sleep(30)
-        print("📩 Email from", from_email, "Subject:", subject)     
+
+        await asyncio.sleep(30)    
 
 # ================== TELEGRAM ==================
-
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
