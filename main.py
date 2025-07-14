@@ -138,6 +138,8 @@ async def check_email_loop():
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("✅ Telegram message received:", update.message.text)  # ADD THIS
+
     await update.message.reply_text("🏨 Welcome! When are you planning to travel to Cairo?")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
