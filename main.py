@@ -1,29 +1,30 @@
 import os
-import json
 import logging
-from datetime import datetime, timedelta
-from urllib.parse import quote
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
-import openai
-from dotenv import load_dotenv
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
+import json
 import imaplib
 import smtplib
 import email
 from email.message import EmailMessage
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+from urllib.parse import quote
+from fastapi import FastAPI
+from telegram import Update
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, filters, ContextTypes
+)
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+import openai
+import asyncio
+from contextlib import asynccontextmanager
 
-# ================== CONFIG ===================
+# Load env
 load_dotenv()
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -34,14 +35,11 @@ openai.api_key = OPENAI_API_KEY
 with open("listings.json", "r", encoding="utf-8") as f:
     listings_data = json.load(f)
 
-# Initialize vectorstore
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-vectorstore = FAISS.load_local(
-    "guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True
-)
+# Vector store
+embeddings = OpenAIEmbeddings()
+vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
-# ============ Shared logic ============
-
+# Shared utils
 def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
     area_encoded = quote(area)
     return (
@@ -103,8 +101,7 @@ def generate_response(user_message):
     )
     return response.choices[0].message.content.strip()
 
-# ============ Email Logic ============
-
+# ========== EMAIL BOT ==========
 def send_email(to_email, subject, body):
     msg = EmailMessage()
     msg["From"] = EMAIL_ADDRESS
@@ -118,76 +115,84 @@ def send_email(to_email, subject, body):
         smtp.send_message(msg)
 
 def check_email():
-    mail = imaplib.IMAP4_SSL(IMAP_SERVER)
-    mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    mail.select("inbox")
+    try:
+        mail = imaplib.IMAP4_SSL(IMAP_SERVER)
+        mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        mail.select("inbox")
+        status, messages = mail.search(None, '(UNSEEN)')
+        for num in messages[0].split():
+            typ, msg_data = mail.fetch(num, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            from_email = email.utils.parseaddr(msg["From"])[1]
+            subject = msg["Subject"]
+            body = ""
 
-    status, messages = mail.search(None, '(UNSEEN)')
-    for num in messages[0].split():
-        typ, msg_data = mail.fetch(num, '(RFC822)')
-        msg = email.message_from_bytes(msg_data[0][1])
-        from_email = email.utils.parseaddr(msg["From"])[1]
-        subject = msg["Subject"]
-        body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        body = part.get_payload(decode=True).decode()
+            else:
+                body = msg.get_payload(decode=True).decode()
 
-        if msg.is_multipart():
-            for part in msg.walk():
-                if part.get_content_type() == "text/plain":
-                    body = part.get_payload(decode=True).decode()
-        else:
-            body = msg.get_payload(decode=True).decode()
+            print(f"📩 Received from {from_email}: {subject}")
+            try:
+                reply = generate_response(body)
+                send_email(from_email, subject, reply)
+                print("✅ Replied.")
+            except Exception as e:
+                print("❌ Error:", e)
+        mail.logout()
+    except Exception as e:
+        print("❌ Email loop error:", e)
 
-        print(f"📩 Received from {from_email}: {subject}")
-        try:
-            reply = generate_response(body)
-            send_email(from_email, subject, reply)
-            print("✅ Replied.")
-        except Exception as e:
-            print("❌ Error:", e)
+async def run_email_loop():
+    print("📧 Email listener running...")
+    while True:
+        check_email()
+        await asyncio.sleep(10)
 
-    mail.logout()
-
-# ============ Telegram Bot Logic ============
-
-chat_history = {}
-
+# ========== TELEGRAM BOT ==========
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏨 Welcome! Where and when are you traveling?")
+    await update.message.reply_text(
+        "🏨 Welcome to your vacation rental assistant! Where would you like to travel and when?"
+    )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
 
-    if user_id not in chat_history:
-        chat_history[user_id] = []
-    chat_history[user_id].append({"role": "user", "content": user_message})
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
+    if "chat_history" not in context.chat_data:
+        context.chat_data["chat_history"] = {}
+    if user_id not in context.chat_data["chat_history"]:
+        context.chat_data["chat_history"][user_id] = []
+
+    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
     try:
         reply = generate_response(user_message)
-        chat_history[user_id].append({"role": "assistant", "content": reply})
         await update.message.reply_text(reply)
+        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
-        await update.message.reply_text("❌ Error processing message.")
-        logging.error(e)
+        logging.error(f"❌ Telegram error: {e}")
+        await update.message.reply_text("❌ Sorry, something went wrong.")
 
-telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-telegram_app.add_handler(CommandHandler("start", start_command))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+async def run_telegram_bot():
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("🤖 Telegram bot running...")
+    await app.run_polling()
 
-# ============ FastAPI App with Lifespan ============
-
+# ========== FASTAPI APP ==========
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("📧 Email listener running...")
-    import threading
-    threading.Thread(target=check_email, daemon=True).start()
-
-    print("🤖 Telegram bot running...")
-    telegram_app.run_polling(stop_signals=None)
+    asyncio.create_task(run_telegram_bot())
+    asyncio.create_task(run_email_loop())
     yield
 
 app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 def root():
-    return {"message": "Bot is running with email + telegram."}
+    return {"status": "ok"}
