@@ -91,6 +91,7 @@ def generate_response(user_message):
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
+
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
     msg = EmailMessage()
@@ -131,8 +132,7 @@ async def check_email_loop():
             mail.logout()
         except Exception as e:
             print("❌ Email error:", e)
-
-        await asyncio.sleep(30)    
+        await asyncio.sleep(30)
 
 # ================== TELEGRAM ==================
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -150,7 +150,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-
     try:
         reply = generate_response(user_message)
         await update.message.reply_text(reply)
@@ -163,24 +162,22 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 
-# ========== FASTAPI APP ==========
+# ================== FASTAPI ==================
 fastapi_app = FastAPI()
 
 @fastapi_app.on_event("startup")
-async def on_startup():
+async def startup_event():
     print("📧 Email listener running...")
     asyncio.create_task(check_email_loop())
     print("🤖 Telegram bot initializing...")
     await app.initialize()
-    await app.start()
+    asyncio.create_task(app.start())
 
 @fastapi_app.on_event("shutdown")
-async def on_shutdown():
-    print("👋 Shutting down Telegram bot...")
-    await app.stop()
+async def shutdown_event():
+    print("🔌 Shutting down Telegram bot...")
     await app.shutdown()
 
-# CORS
 fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
