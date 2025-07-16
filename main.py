@@ -88,7 +88,7 @@ def find_matching_listings(query, guests=2):
     return results
 
 
-def generate_response(user_message):
+def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
