@@ -73,10 +73,14 @@ Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
 """
 
-def find_matching_listings(city, guests):
+def find_matching_listings(query, guests=2):
     results = []
+    query_lower = query.lower()
     for listing in listings_data:
-        if listing["city_hint"].lower() == city.lower() and listing["guests"] >= guests:
+        name_match = query_lower in listing["name"].lower()
+        city_match = query_lower in listing["city_hint"].lower()
+        guest_ok = listing["guests"] >= guests
+        if (name_match or city_match) and guest_ok:
             url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
             results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
         if len(results) >= 3:
@@ -98,7 +102,7 @@ def generate_response(user_message, user_id=None, history=None):
         "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
     }
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-    suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings("Cairo", 4))
+    suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings(user_message, 4))
 
     messages = [{"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"}]
 
