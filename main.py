@@ -138,72 +138,29 @@ async def check_email_loop():
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("✅ Telegram message received:", update.message.text)
+    print("✅ Telegram message received:", update.message.text)  # ADD THIS
+
     await update.message.reply_text("🏨 Welcome! When are you planning to travel to Cairo?")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
+    print("📲 Telegram message received:", user_message)  # 👈 log here
+
     user_id = str(update.effective_user.id)
 
-    if "guest_sessions" not in context.chat_data:
-        context.chat_data["guest_sessions"] = {}
+    if "chat_history" not in context.chat_data:
+        context.chat_data["chat_history"] = {}
+    if user_id not in context.chat_data["chat_history"]:
+        context.chat_data["chat_history"][user_id] = []
 
-    if user_id not in context.chat_data["guest_sessions"]:
-        context.chat_data["guest_sessions"][user_id] = {
-            "state": "start",
-            "unit": None,
-            "checkin": None,
-            "checkout": None,
-            "guests": None,
-            "email": None
-        }
+    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
 
-    session = context.chat_data["guest_sessions"][user_id]
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        if session["state"] == "start":
-            session["state"] = "awaiting_unit"
-            await update.message.reply_text("🏘️ Thanks for reaching out! Which unit are you interested in?")
-            return
-
-        elif session["state"] == "awaiting_unit":
-            session["unit"] = user_message
-            session["state"] = "awaiting_checkin"
-            await update.message.reply_text("📅 Great! What is your check-in date? (e.g., 2025-08-12)")
-            return
-
-        elif session["state"] == "awaiting_checkin":
-            session["checkin"] = user_message
-            session["state"] = "awaiting_checkout"
-            await update.message.reply_text("📅 And your check-out date? (e.g., 2025-08-15)")
-            return
-
-        elif session["state"] == "awaiting_checkout":
-            session["checkout"] = user_message
-            session["state"] = "awaiting_guests"
-            await update.message.reply_text("👥 How many guests will be staying?")
-            return
-
-        elif session["state"] == "awaiting_guests":
-            session["guests"] = user_message
-            session["state"] = "inquiry_complete"
-
-            summary = (
-                f"✅ Here's what I got:\n"
-                f"• Unit: {session['unit']}\n"
-                f"• Check-in: {session['checkin']}\n"
-                f"• Check-out: {session['checkout']}\n"
-                f"• Guests: {session['guests']}\n\n"
-                f"I'll now check availability and get back to you!"
-            )
-            await update.message.reply_text(summary)
-            return
-
-        else:
-            reply = generate_response(user_message)
-            await update.message.reply_text(reply)
-
+        reply = generate_response(user_message)
+        await update.message.reply_text(reply)
+        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
@@ -222,12 +179,15 @@ async def start_all():
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
-    asyncio.create_task(app.updater.start_polling())
+    asyncio.create_task(app.updater.start_polling())  # ✅ Start polling separately
+
+
 
 @fastapi_app.on_event("shutdown")
 async def shutdown_all():
     print("⛔ Shutting down bot...")
     await app.stop()
+
 
 fastapi_app.add_middleware(
     CORSMiddleware,
