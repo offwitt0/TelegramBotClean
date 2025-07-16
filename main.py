@@ -1,3 +1,9 @@
+# Full updated `main.py` integrating:
+# - Excel listings
+# - Booking conflict check
+# - Telegram + Email unified logic
+# - Confirmation and property filter + booking save
+
 import os
 import json
 import logging
@@ -9,6 +15,7 @@ from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
+import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
@@ -31,68 +38,103 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ================== AIRBNB & DATA ==================
-with open("listings.json", "r", encoding="utf-8") as f:
-    listings_data = json.load(f)
+# ================== Load Excel & Bookings ==================
+EXCEL_PATH = "AnQa.xlsx"
+BOOKINGS_PATH = "bookings.json"
+listings_df = pd.read_excel(EXCEL_PATH)
+if not os.path.exists(BOOKINGS_PATH):
+    with open(BOOKINGS_PATH, "w") as f:
+        json.dump({}, f)
 
+confirmed_sessions = {}  # session_id -> {unit_name, dates}
+
+def is_available(unit_name, start_date, end_date):
+    with open(BOOKINGS_PATH, "r") as f:
+        bookings = json.load(f)
+    booked_ranges = bookings.get(unit_name, [])
+    for r in booked_ranges:
+        booked_start = datetime.strptime(r[0], "%Y-%m-%d").date()
+        booked_end = datetime.strptime(r[1], "%Y-%m-%d").date()
+        if not (end_date <= booked_start or start_date >= booked_end):
+            return False
+    return True
+
+def save_booking(unit_name, start_date, end_date):
+    with open(BOOKINGS_PATH, "r") as f:
+        bookings = json.load(f)
+    bookings.setdefault(unit_name, []).append([str(start_date), str(end_date)])
+    with open(BOOKINGS_PATH, "w") as f:
+        json.dump(bookings, f, indent=2)
+
+# ================== AIRBNB ==================
+def filter_properties(requirements: dict):
+    df = listings_df.copy()
+    if "area" in requirements:
+        df = df[df["Area"].str.lower() == requirements["area"].lower()]
+    if "guests" in requirements:
+        df = df[df["Guests"] >= requirements["guests"]]
+    if "bathrooms" in requirements:
+        df = df[df["Bathrooms #"] >= requirements["bathrooms"]]
+    if "pets" in requirements and requirements["pets"]:
+        df = df[df["Luggage"] == "Yes"]
+    if "start_date" in requirements and "end_date" in requirements:
+        df = df[df["Unit Name"].apply(lambda u: is_available(u, requirements["start_date"], requirements["end_date"]))]
+    return df.head(3)
+
+def generate_airbnb_link(area, checkin, checkout, adults=2):
+    area_encoded = quote(area)
+    return f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes?checkin={checkin}&checkout={checkout}&adults={adults}"
+
+# ================== LangChain Embeddings ==================
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
-def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
-    area_encoded = quote(area)
-    return (
-        f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-        f"?checkin={checkin}&checkout={checkout}&adults={adults}"
-        f"&children={children}&infants={infants}&pets={pets}"
-    )
+# ================== Shared Response ==================
+def parse_requirements(message):
+    message = message.lower()
+    req = {"guests": 0, "bathrooms": 0, "area": None, "pets": False}
+    if "zamalek" in message:
+        req["area"] = "Zamalek"
+    if "maadi" in message:
+        req["area"] = "Maadi"
+    if "garden city" in message:
+        req["area"] = "Garden City"
+    if "pets" in message:
+        req["pets"] = True
+    for g in range(1, 11):
+        if f"{g} adult" in message or f"{g} guests" in message:
+            req["guests"] = g
+    for b in range(1, 6):
+        if f"{b} bathroom" in message:
+            req["bathrooms"] = b
+    req["start_date"] = datetime.today().date() + timedelta(days=5)
+    req["end_date"] = req["start_date"] + timedelta(days=4)
+    return req
 
-def get_prompt():
-    return """
-You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
-Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-Only ignore a question if it's completely unrelated to travel.
-Use the internal knowledge base provided to answer questions clearly and accurately.
-"""
+def generate_response(user_message, session_id):
+    req = parse_requirements(user_message)
+    matching = filter_properties(req)
+    confirmed_sessions[session_id] = {"candidates": list(matching["Unit Name"]) if not matching.empty else [], **req}
+    if matching.empty:
+        return "❌ Sorry, no available listings match your request."
+    msgs = []
+    for _, row in matching.iterrows():
+        unit = row["Unit Name"]
+        link = generate_airbnb_link(row["Area"], req["start_date"], req["end_date"], req["guests"])
+        msgs.append(f"🏡 *{unit}* in {row['Area']}\n- Guests: {int(row['Guests'])}, Bathrooms: {row['Bathrooms #']}\n[View Listing]({link})")
+    return "\n\n".join(msgs) + "\n\nPlease reply with the *exact* name of the apartment to confirm booking."
 
-def find_matching_listings(city, guests):
-    results = []
-    for listing in listings_data:
-        if listing["city_hint"].lower() == city.lower() and listing["guests"] >= guests:
-            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
-            results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
-        if len(results) >= 3:
-            break
-    return results
+def try_confirm_booking(session_id, user_message):
+    data = confirmed_sessions.get(session_id)
+    if not data:
+        return None
+    for name in data.get("candidates", []):
+        if name.lower() in user_message.lower():
+            save_booking(name, data["start_date"], data["end_date"])
+            return f"✅ Booking confirmed for *{name}* from {data['start_date']} to {data['end_date']}"
+    return None
 
-def generate_response(user_message):
-    today = datetime.today().date()
-    checkin = today + timedelta(days=3)
-    checkout = today + timedelta(days=6)
-
-    relevant_docs = vectorstore.similarity_search(user_message, k=3)
-    kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    print("⚙️ generating response for:", user_message)
-
-    links = {
-        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    }
-    custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-    suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings("Cairo", 4))
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"},
-            {"role": "user", "content": user_message}
-        ],
-        max_tokens=1000,
-        temperature=0.7
-    )
-    return response.choices[0].message.content.strip()
-
-# ================== EMAIL ==================
+# ================== Email ==================
 def send_email(to_email, subject, body):
     msg = EmailMessage()
     msg["From"] = EMAIL_ADDRESS
@@ -117,16 +159,15 @@ async def check_email_loop():
                 from_email = email.utils.parseaddr(msg["From"])[1]
                 subject = msg["Subject"]
                 body = ""
-
                 if msg.is_multipart():
                     for part in msg.walk():
                         if part.get_content_type() == "text/plain":
                             body = part.get_payload(decode=True).decode()
                 else:
                     body = msg.get_payload(decode=True).decode()
-
                 print(f"📩 Email from {from_email}: {subject}")
-                reply = generate_response(body)
+                confirmation = try_confirm_booking(from_email, body)
+                reply = confirmation or generate_response(body, from_email)
                 send_email(from_email, subject, reply)
                 print("✅ Email replied.")
             mail.logout()
@@ -134,60 +175,38 @@ async def check_email_loop():
             print("❌ Email error:", e)
         await asyncio.sleep(30)
 
-# ================== TELEGRAM ==================
+# ================== Telegram ==================
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("✅ Telegram message received:", update.message.text)  # ADD THIS
-
-    await update.message.reply_text("🏨 Welcome! When are you planning to travel to Cairo?")
+    await update.message.reply_text("🏨 Welcome! Tell me when and where you want to stay in Cairo.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    print("📲 Telegram message received:", user_message)  # 👈 log here
-
     user_id = str(update.effective_user.id)
-
-    if "chat_history" not in context.chat_data:
-        context.chat_data["chat_history"] = {}
-    if user_id not in context.chat_data["chat_history"]:
-        context.chat_data["chat_history"][user_id] = []
-
-    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
-
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-
-    try:
-        reply = generate_response(user_message)
-        await update.message.reply_text(reply)
-        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
-    except Exception as e:
-        await update.message.reply_text("❌ Bot error")
-        logging.error(e)
+    print("📲 Telegram message received:", user_message)
+    confirmation = try_confirm_booking(user_id, user_message)
+    reply = confirmation or generate_response(user_message, user_id)
+    await update.message.reply_text(reply, parse_mode="Markdown")
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 
-# ================== FASTAPI ==================
+# ================== FastAPI ==================
 fastapi_app = FastAPI()
 
 @fastapi_app.on_event("startup")
-async def start_all():
+async def startup():
     print("📧 Email listener running...")
     asyncio.create_task(check_email_loop())
-
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
-    asyncio.create_task(app.updater.start_polling())  # ✅ Start polling separately
-
-
+    asyncio.create_task(app.updater.start_polling())
 
 @fastapi_app.on_event("shutdown")
-async def shutdown_all():
-    print("⛔ Shutting down bot...")
+async def shutdown():
     await app.stop()
-
 
 fastapi_app.add_middleware(
     CORSMiddleware,
