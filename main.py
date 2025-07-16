@@ -70,7 +70,8 @@ def save_booking(unit_name, start_date, end_date):
 def filter_properties(requirements: dict):
     df = listings_df.copy()
     if "area" in requirements:
-        df = df[df["Area"].str.lower() == requirements["area"].lower()]
+        if requirements.get("area"):
+            df = df[df["Area"].str.lower() == requirements["area"].lower()]
     if "guests" in requirements:
         df = df[df["Guests"] >= requirements["guests"]]
     if "bathrooms" in requirements:
