@@ -20,6 +20,19 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 
+# ================== ENV & CONFIG ==================
+load_dotenv()
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+IMAP_SERVER = "imap.gmail.com"
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
 def load_email_history(email_address):
     try:
         with open("email_history.json", "r") as f:
@@ -37,18 +50,6 @@ def save_email_history(email_address, history):
     all_history[email_address] = history
     with open("email_history.json", "w") as f:
         json.dump(all_history, f, indent=2)
-
-# ================== ENV & CONFIG ==================
-load_dotenv()
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-IMAP_SERVER = "imap.gmail.com"
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ================== AIRBNB & DATA ==================
 with open("listings.json", "r", encoding="utf-8") as f:
