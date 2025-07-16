@@ -82,7 +82,7 @@ def find_matching_listings(query, guests=2):
     for listing in listings_data:
         name = listing["name"].lower()
         city = listing.get("city_hint", "").lower()
-        guest_ok = listing["guests"] >= guests
+        guest_ok = (listing.get("guests") or 0) >= guests
 
         # Match full query or keyword in name or city
         match = query_lower in name or query_lower in city
