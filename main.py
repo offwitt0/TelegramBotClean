@@ -98,9 +98,6 @@ def find_matching_listings(query, guests=2):
                 url = f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
             results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
 
-        if len(results) >= 5:
-            break
-
     return results
 
 
