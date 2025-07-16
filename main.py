@@ -5,6 +5,7 @@ import asyncio
 import imaplib
 import smtplib
 import email
+import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -137,15 +138,29 @@ async def check_email_loop():
 # ================== TELEGRAM ==================
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("✅ Telegram message received:", update.message.text)  # ADD THIS
+def is_valid_email(email_str: str) -> bool:
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email_str) is not None
 
-    await update.message.reply_text("🏨 Welcome! When are you planning to travel to Cairo?")
+def save_user_email_mapping(user_id: str, email_address: str):
+    mapping_path = "user_mapping.json"
+    try:
+        with open(mapping_path, "r") as f:
+            mapping = json.load(f)
+    except FileNotFoundError:
+        mapping = {}
+    mapping[user_id] = email_address
+    with open(mapping_path, "w") as f:
+        json.dump(mapping, f, indent=2)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    context.chat_data["chat_history"] = {}
+    context.chat_data["user_email"] = {}
+
+    await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    print("📲 Telegram message received:", user_message)  # 👈 log here
-
     user_id = str(update.effective_user.id)
 
     if "chat_history" not in context.chat_data:
@@ -153,8 +168,18 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in context.chat_data["chat_history"]:
         context.chat_data["chat_history"][user_id] = []
 
-    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+    if "user_email" not in context.chat_data:
+        context.chat_data["user_email"] = {}
+    if user_id not in context.chat_data["user_email"]:
+        if is_valid_email(user_message):
+            context.chat_data["user_email"][user_id] = user_message
+            save_user_email_mapping(user_id, user_message)
+            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+        else:
+            await update.message.reply_text("📧 Please provide a valid email address to continue.")
+        return
 
+    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
@@ -179,15 +204,12 @@ async def start_all():
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
-    asyncio.create_task(app.updater.start_polling())  # ✅ Start polling separately
-
-
+    asyncio.create_task(app.updater.start_polling())
 
 @fastapi_app.on_event("shutdown")
 async def shutdown_all():
     print("⛔ Shutting down bot...")
     await app.stop()
-
 
 fastapi_app.add_middleware(
     CORSMiddleware,
