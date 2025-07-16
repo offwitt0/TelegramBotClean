@@ -65,7 +65,7 @@ def find_matching_listings(city, guests):
             break
     return results
 
-def generate_response(user_message):
+def generate_response(user_message, user_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
@@ -82,12 +82,18 @@ def generate_response(user_message):
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
     suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings("Cairo", 4))
 
+    # Build the full conversation context
+    full_chat = []
+    if history:
+        full_chat.extend(history)
+    full_chat.append({"role": "user", "content": user_message})
+
+    messages = [{"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"}]
+    messages.extend(full_chat)
+
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"},
-            {"role": "user", "content": user_message}
-        ],
+        messages=messages,
         max_tokens=1000,
         temperature=0.7
     )
@@ -183,7 +189,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        reply = generate_response(user_message)
+        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
         await update.message.reply_text(reply)
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
