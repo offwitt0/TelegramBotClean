@@ -1,8 +1,7 @@
 # Full updated `main.py` integrating:
-# - Excel listings
-# - Booking conflict check
-# - Telegram + Email unified logic
-# - Confirmation and property filter + booking save
+# - Smart customer service behavior
+# - Greeting, Q&A, and booking detection
+# - Telegram + Email support
 
 import os
 import json
@@ -48,6 +47,7 @@ if not os.path.exists(BOOKINGS_PATH):
 
 confirmed_sessions = {}  # session_id -> {unit_name, dates}
 
+# ================== Booking Logic ==================
 def is_available(unit_name, start_date, end_date):
     with open(BOOKINGS_PATH, "r") as f:
         bookings = json.load(f)
@@ -66,17 +66,16 @@ def save_booking(unit_name, start_date, end_date):
     with open(BOOKINGS_PATH, "w") as f:
         json.dump(bookings, f, indent=2)
 
-# ================== AIRBNB ==================
+# ================== Property Filtering ==================
 def filter_properties(requirements: dict):
     df = listings_df.copy()
-    if "area" in requirements:
-        if requirements.get("area"):
-            df = df[df["Area"].str.lower() == requirements["area"].lower()]
+    if requirements.get("area"):
+        df = df[df["Area"].str.lower() == requirements["area"].lower()]
     if "guests" in requirements:
         df = df[df["Guests"] >= requirements["guests"]]
     if "bathrooms" in requirements:
         df = df[df["Bathrooms #"] >= requirements["bathrooms"]]
-    if "pets" in requirements and requirements["pets"]:
+    if requirements.get("pets"):
         df = df[df["Luggage"] == "Yes"]
     if "start_date" in requirements and "end_date" in requirements:
         df = df[df["Unit Name"].apply(lambda u: is_available(u, requirements["start_date"], requirements["end_date"]))]
@@ -86,41 +85,55 @@ def generate_airbnb_link(area, checkin, checkout, adults=2):
     area_encoded = quote(area)
     return f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes?checkin={checkin}&checkout={checkout}&adults={adults}"
 
-# ================== LangChain Embeddings ==================
-embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
-
-# ================== Shared Response ==================
+# ================== NLP & Booking Engine ==================
 def parse_requirements(message):
     message = message.lower()
-    req = {"guests": 2, "bathrooms": 1, "area": None, "pets": False}
-
+    req = {"guests": 0, "bathrooms": 0, "area": None, "pets": False}
     if "zamalek" in message:
         req["area"] = "Zamalek"
-    elif "maadi" in message:
+    if "maadi" in message:
         req["area"] = "Maadi"
-    elif "garden city" in message:
+    if "garden city" in message:
         req["area"] = "Garden City"
-    elif "downtown" in message:
-        req["area"] = "DownTown"
-
-    if "pet" in message:
+    if "pets" in message:
         req["pets"] = True
-
     for g in range(1, 11):
-        if f"{g} adult" in message or f"{g} guest" in message:
+        if f"{g} adult" in message or f"{g} guests" in message:
             req["guests"] = g
-
     for b in range(1, 6):
         if f"{b} bathroom" in message:
             req["bathrooms"] = b
-
     req["start_date"] = datetime.today().date() + timedelta(days=5)
     req["end_date"] = req["start_date"] + timedelta(days=4)
     return req
 
+def detect_intent(message):
+    message = message.lower()
+    greetings = ["hi", "hello", "hey"]
+    if any(g in message for g in greetings):
+        return "greeting"
+    if any(x in message for x in ["book", "stay", "rent", "apartment", "hotel"]):
+        return "booking"
+    return "question"
 
 def generate_response(user_message, session_id):
+    intent = detect_intent(user_message)
+
+    if intent == "greeting":
+        return "👋 Hello! How can I assist you today regarding your stay in Cairo?"
+
+    if intent == "question":
+        relevant_docs = vectorstore.similarity_search(user_message, k=3)
+        context = "\n\n".join([doc.page_content for doc in relevant_docs])
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful hotel assistant in Cairo."},
+                {"role": "user", "content": f"{context}\n\nUser: {user_message}"}
+            ]
+        )
+        return completion.choices[0].message.content.strip()
+
     req = parse_requirements(user_message)
     matching = filter_properties(req)
     confirmed_sessions[session_id] = {"candidates": list(matching["Unit Name"]) if not matching.empty else [], **req}
@@ -188,7 +201,7 @@ async def check_email_loop():
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏨 Welcome! Tell me when and where you want to stay in Cairo.")
+    await update.message.reply_text("🏨 Welcome! How can I help you with your stay in Cairo?")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
