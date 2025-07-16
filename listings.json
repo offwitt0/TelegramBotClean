@@ -249,5 +249,463 @@
       "Wireless"
     ],
     "url": ""
+  },
+  {
+    "id": "234bd70e",
+    "name": "Zamalek 1 Taha Hussein",
+    "city_hint": "Zamalek",
+    "guests": 7,
+    "bedrooms": 3,
+    "bathrooms": 2.5,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Parking available",
+      "Elevator",
+      "Luggage storage"
+    ],
+    "url": ""
+  },
+  {
+    "id": "c463befb",
+    "name": "Sulaiman Khan",
+    "city_hint": "DownTown",
+    "guests": 6,
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator",
+      "Luggage storage"
+    ],
+    "url": ""
+  },
+  {
+    "id": "345066dd",
+    "name": "Sukkar Khan",
+    "city_hint": "Maadi",
+    "guests": 6,
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator",
+      "Luggage storage"
+    ],
+    "url": ""
+  },
+  {
+    "id": "e324917e",
+    "name": "Maadi nily Gem",
+    "city_hint": "Maadi",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator",
+      "Luggage storage"
+    ],
+    "url": ""
+  },
+  {
+    "id": "e36d6805",
+    "name": "Dokki khan",
+    "city_hint": "Dokki",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Parking available",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "02773a68",
+    "name": "Experimental: Fancy Pyramids' Khan",
+    "city_hint": "Haram",
+    "guests": 8,
+    "bedrooms": 4,
+    "bathrooms": 3.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "d8f6fd86",
+    "name": "Earthy historic Studio",
+    "city_hint": "Haram",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "10079db8",
+    "name": "Boho khan",
+    "city_hint": "Haram",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 1.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "98b42d6b",
+    "name": "Luxuries Gem: The green khan",
+    "city_hint": "Haram",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "9b33c2e7",
+    "name": "The vintage duplex Khan",
+    "city_hint": "Haram",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "5f5da389",
+    "name": "Dokki 2 Duplex",
+    "city_hint": "Dokki",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "42e86102",
+    "name": "Ancient Bohemian Khan",
+    "city_hint": "Haram",
+    "guests": 12,
+    "bedrooms": 6,
+    "bathrooms": 5.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "67ac1c1f",
+    "name": "Minimal ancient Khan",
+    "city_hint": "Haram",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1.5,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "b33181e1",
+    "name": "Palm Dreams Khan",
+    "city_hint": "Haram",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 1.5,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "51443e74",
+    "name": "Khan El Hekma | Ancient khan",
+    "city_hint": "Haram",
+    "guests": 6,
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": ""
+  },
+  {
+    "id": "cb295199",
+    "name": "Zamalek 2 Heshmat",
+    "city_hint": "Zamalek",
+    "guests": 7,
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "f1be0cdd",
+    "name": "Orabi khan",
+    "city_hint": "DownTown",
+    "guests": 4,
+    "bedrooms": 2,
+    "bathrooms": 1.5,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": "https://www.airbnb.com/rooms/1089682546879442448?source_impression_id=p3_1746487287_P3L7KWXr6VlwDd6g"
+  },
+  {
+    "id": "af7bbfc6",
+    "name": "Alia Khan",
+    "city_hint": "DownTown",
+    "guests": 3,
+    "bedrooms": 2,
+    "bathrooms": 2.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": "https://www.airbnb.com/rooms/1331034829647720574?source_impression_id=p3_1746487433_P3w_EDJjOh-0G2ip"
+  },
+  {
+    "id": "7f0e2e6c",
+    "name": "Experimental",
+    "city_hint": "Haram",
+    "guests": 8,
+    "bedrooms": 4,
+    "bathrooms": 3.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": "https://www.airbnb.com/rooms/1217270627709511992?source_impression_id=p3_1746491091_P3ZRNyodNgWjFgjH"
+  },
+  {
+    "id": "0e153a53",
+    "name": "Luxuries Gem",
+    "city_hint": "Haram",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1.0,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": "https://www.airbnb.com/rooms/1205923422679122452?source_impression_id=p3_1746491091_P3VWLdqKSfFcdy7S"
+  },
+  {
+    "id": "0c06fbb6",
+    "name": "Galleria Khan",
+    "city_hint": "New Cairo",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless",
+      "Elevator"
+    ],
+    "url": "http://airbnb.com/h/galleriakhan"
+  },
+  {
+    "id": "aa06dcf7",
+    "name": "Rehab Khan",
+    "city_hint": "New Cairo",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": "http://airbnb.com/h/rehabkhan"
+  },
+  {
+    "id": "78ab61bb",
+    "name": "Mivida 1",
+    "city_hint": "New Cairo",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "ea1be639",
+    "name": "Mivida 2",
+    "city_hint": "New Cairo",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "c8d63840",
+    "name": "El Banafseg",
+    "city_hint": "New Cairo",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "999ca9c5",
+    "name": "Zamalek Studio",
+    "city_hint": "Zamalek",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
+  },
+  {
+    "id": "ec90b6b8",
+    "name": "Zamalek 3 El Dor",
+    "city_hint": "Zamalek",
+    "guests": 2,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "rating": 4.5,
+    "amenities": [
+      "Kitchen",
+      "Air conditioning",
+      "Washing machine",
+      "Wireless"
+    ],
+    "url": ""
   }
 ]
