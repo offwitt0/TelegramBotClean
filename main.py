@@ -20,6 +20,24 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 
+def load_email_history(email_address):
+    try:
+        with open("email_history.json", "r") as f:
+            history = json.load(f)
+        return history.get(email_address, [])
+    except FileNotFoundError:
+        return []
+
+def save_email_history(email_address, history):
+    try:
+        with open("email_history.json", "r") as f:
+            all_history = json.load(f)
+    except FileNotFoundError:
+        all_history = {}
+    all_history[email_address] = history
+    with open("email_history.json", "w") as f:
+        json.dump(all_history, f, indent=2)
+
 # ================== ENV & CONFIG ==================
 load_dotenv()
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
@@ -82,14 +100,11 @@ def generate_response(user_message, user_id=None, history=None):
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
     suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings("Cairo", 4))
 
-    # Build the full conversation context
-    full_chat = []
-    if history:
-        full_chat.extend(history)
-    full_chat.append({"role": "user", "content": user_message})
-
     messages = [{"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"}]
-    messages.extend(full_chat)
+
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -133,7 +148,19 @@ async def check_email_loop():
                     body = msg.get_payload(decode=True).decode()
 
                 print(f"📩 Email from {from_email}: {subject}")
-                reply = generate_response(body)
+
+                # 🔁 Load chat history
+                history = load_email_history(from_email)
+                history.append({"role": "user", "content": body})
+
+                # 🧠 Generate reply with memory
+                reply = generate_response(body, from_email, history)
+
+                # ✅ Save new response to history
+                history.append({"role": "assistant", "content": reply})
+                save_email_history(from_email, history)
+
+                # Send email back
                 send_email(from_email, subject, reply)
                 print("✅ Email replied.")
             mail.logout()
