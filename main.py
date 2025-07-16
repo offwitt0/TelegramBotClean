@@ -93,24 +93,32 @@ vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangero
 # ================== Shared Response ==================
 def parse_requirements(message):
     message = message.lower()
-    req = {"guests": 0, "bathrooms": 0, "area": None, "pets": False}
+    req = {"guests": 2, "bathrooms": 1, "area": None, "pets": False}
+
     if "zamalek" in message:
         req["area"] = "Zamalek"
-    if "maadi" in message:
+    elif "maadi" in message:
         req["area"] = "Maadi"
-    if "garden city" in message:
+    elif "garden city" in message:
         req["area"] = "Garden City"
-    if "pets" in message:
+    elif "downtown" in message:
+        req["area"] = "DownTown"
+
+    if "pet" in message:
         req["pets"] = True
+
     for g in range(1, 11):
-        if f"{g} adult" in message or f"{g} guests" in message:
+        if f"{g} adult" in message or f"{g} guest" in message:
             req["guests"] = g
+
     for b in range(1, 6):
         if f"{b} bathroom" in message:
             req["bathrooms"] = b
+
     req["start_date"] = datetime.today().date() + timedelta(days=5)
     req["end_date"] = req["start_date"] + timedelta(days=4)
     return req
+
 
 def generate_response(user_message, session_id):
     req = parse_requirements(user_message)
