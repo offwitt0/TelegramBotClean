@@ -77,13 +77,13 @@ def find_matching_listings(query, guests=2):
     results = []
     query_lower = query.lower()
     for listing in listings_data:
-        name_match = query_lower in listing["name"].lower()
-        city_match = query_lower in listing["city_hint"].lower()
+        in_name = query_lower in listing["name"].lower()
+        in_city = query_lower in listing["city_hint"].lower()
         guest_ok = listing["guests"] >= guests
-        if (name_match or city_match) and guest_ok:
+        if (in_name or in_city) and guest_ok:
             url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
             results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
-        if len(results) >= 3:
+        if len(results) >= 5:
             break
     return results
 
@@ -97,12 +97,14 @@ def generate_response(user_message, user_id=None, history=None):
     print("⚙️ generating response for:", user_message)
 
     links = {
-        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
     }
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-    suggestions = "\n\nHere are some great options:\n" + "\n".join(find_matching_listings(user_message, 4))
+    # Use user message directly for matching
+    matches = find_matching_listings(user_message, guests=2)
+    if matches:
+        suggestions = "\n\nHere are some great options:\n" + "\n".join(matches)
+    else:
+        suggestions = "\n\nI'm sorry, I couldn't find listings for that query. Try a different area or name!"
 
     messages = [{"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"}]
 
