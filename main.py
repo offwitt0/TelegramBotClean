@@ -74,8 +74,8 @@ Use the internal knowledge base provided to answer questions clearly and accurat
 """
 
 def find_matching_listings(query, guests=2):
-    results = []
     query_lower = query.lower()
+    results = []
     for listing in listings_data:
         in_name = query_lower in listing["name"].lower()
         in_city = query_lower in listing["city_hint"].lower()
@@ -87,38 +87,46 @@ def find_matching_listings(query, guests=2):
             break
     return results
 
-def generate_response(user_message, user_id=None, history=None):
+
+def generate_response(user_message):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
 
+    # Search knowledge base
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
     print("⚙️ generating response for:", user_message)
 
+    # Match listings using user's message (free text)
+    listings = find_matching_listings(user_message, guests=2)
+    if listings:
+        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+    else:
+        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
+
+    # Optional: Add area links (static Airbnb-style)
     links = {
+        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
     }
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-    # Use user message directly for matching
-    matches = find_matching_listings(user_message, guests=2)
-    if matches:
-        suggestions = "\n\nHere are some great options:\n" + "\n".join(matches)
-    else:
-        suggestions = "\n\nI'm sorry, I couldn't find listings for that query. Try a different area or name!"
 
-    messages = [{"role": "system", "content": f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"}]
-
-    if history:
-        messages.extend(history)
-    messages.append({"role": "user", "content": user_message})
-
+    # Compose message
+    system_message = f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"
+    
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=messages,
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ],
         max_tokens=1000,
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
+
 
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
