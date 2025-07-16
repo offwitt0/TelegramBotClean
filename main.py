@@ -93,7 +93,9 @@ def find_matching_listings(query, guests=2):
             match = any(word in name or word in city for word in query_words)
 
         if match and guest_ok:
-            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+            url = listing.get("url")
+            if not url:
+                url = f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
             results.append(f"{listing['name']} (⭐ {listing['rating']})\n{url}")
 
         if len(results) >= 5:
