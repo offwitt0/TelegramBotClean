@@ -75,7 +75,7 @@ Use the internal knowledge base provided to answer questions clearly and accurat
 
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
-    query_words = query_lower.split()
+
     results = []
 
     for listing in listings_data:
@@ -83,8 +83,13 @@ def find_matching_listings(query, guests=2):
         city = listing.get("city_hint", "").lower()
         guest_ok = listing["guests"] >= guests
 
-        # Match if any word in query appears in name or city
-        match = any(word in name or word in city for word in query_words)
+        # Match full query or keyword in name or city
+        match = query_lower in name or query_lower in city
+
+        # Also match if any individual word appears in name/city
+        if not match:
+            query_words = query_lower.split()
+            match = any(word in name or word in city for word in query_words)
 
         if match and guest_ok:
             url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
