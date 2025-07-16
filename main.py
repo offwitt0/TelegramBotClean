@@ -20,6 +20,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from openai import OpenAI
 
 # ================== LOGGING SETUP ==================
@@ -37,6 +39,186 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ================== KNOWLEDGE BASE SETUP ==================
+def load_or_create_vectorstore():
+    """Load existing vectorstore or create new one from SOP file"""
+    vectorstore_path = "guest_kb_vectorstore"
+    
+    try:
+        # Try to load existing vectorstore
+        if os.path.exists(vectorstore_path):
+            logger.info("📚 Loading existing knowledge base...")
+            embeddings = OpenAIEmbeddings()
+            vectorstore = FAISS.load_local(vectorstore_path, embeddings, allow_dangerous_deserialization=True)
+            logger.info("✅ Knowledge base loaded successfully")
+            return vectorstore
+        else:
+            logger.info("📝 Creating new knowledge base from SOP file...")
+            return create_vectorstore_from_sop()
+    except Exception as e:
+        logger.error(f"❌ Error loading vectorstore: {e}")
+        logger.info("🔄 Creating new vectorstore...")
+        return create_vectorstore_from_sop()
+
+def create_vectorstore_from_sop():
+    """Create vectorstore from SOP file"""
+    sop_file = "sop_cleaned.txt"
+    
+    try:
+        if not os.path.exists(sop_file):
+            logger.warning(f"⚠️ SOP file {sop_file} not found. Creating empty vectorstore.")
+            # Create empty vectorstore with dummy document
+            embeddings = OpenAIEmbeddings()
+            dummy_doc = Document(page_content="No knowledge base available", metadata={"source": "dummy"})
+            vectorstore = FAISS.from_documents([dummy_doc], embeddings)
+            return vectorstore
+        
+        # Load SOP content
+        with open(sop_file, "r", encoding="utf-8") as f:
+            sop_text = f.read()
+        
+        # Create document
+        doc = Document(page_content=sop_text, metadata={"source": "guest_sop"})
+        
+        # Split into chunks
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+        chunks = splitter.split_documents([doc])
+        
+        # Create vectorstore
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents(chunks, embeddings)
+        
+        # Save vectorstore
+        vectorstore.save_local("guest_kb_vectorstore")
+        logger.info(f"✅ Knowledge base created with {len(chunks)} chunks")
+        
+        return vectorstore
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating vectorstore: {e}")
+        # Return empty vectorstore as fallback
+        embeddings = OpenAIEmbeddings()
+        dummy_doc = Document(page_content="Knowledge base unavailable", metadata={"source": "error"})
+        return FAISS.from_documents([dummy_doc], embeddings)
+
+def add_documents_to_vectorstore(documents: list, vectorstore_path: str = "guest_kb_vectorstore"):
+    """Add new documents to existing vectorstore"""
+    try:
+        vectorstore = load_or_create_vectorstore()
+        
+        # Split documents
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
+        chunks = splitter.split_documents(documents)
+        
+        # Add to vectorstore
+        vectorstore.add_documents(chunks)
+        vectorstore.save_local(vectorstore_path)
+        
+        logger.info(f"✅ Added {len(chunks)} new chunks to knowledge base")
+        return vectorstore
+        
+    except Exception as e:
+        logger.error(f"❌ Error adding documents to vectorstore: {e}")
+        return None
+
+def generate_knowledge_based_response(user_message: str, session_id: str) -> str:
+    """Generate response using knowledge base + OpenAI"""
+    try:
+        # Search knowledge base for relevant information
+        context = search_knowledge_base(user_message, k=3)
+        
+        # Enhanced system prompt with knowledge base context
+        system_prompt = """You are AnQa Booking Assistant, a helpful accommodation assistant in Cairo, Egypt.
+
+You help guests with:
+- Property information and bookings
+- Cairo neighborhood guides (Zamalek, Maadi, Garden City, Heliopolis, etc.)
+- Local attractions and amenities
+- Transportation and getting around
+- Booking policies and procedures
+- General travel advice for Cairo
+
+IMPORTANT INSTRUCTIONS:
+1. Use the provided context from the knowledge base as your PRIMARY source of information
+2. If the knowledge base has relevant information, use it and reference it naturally
+3. If the knowledge base doesn't have relevant info, use your general knowledge
+4. Be friendly, informative, and helpful
+5. Always prioritize accuracy over completeness
+6. If unsure about specific details, suggest contacting support
+
+KNOWLEDGE BASE CONTEXT:
+{context}
+
+Answer the user's question based on this context and your expertise."""
+
+        # Generate response using OpenAI with knowledge base context
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt.format(context=context)},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=600,
+            temperature=0.7
+        )
+        
+        response = completion.choices[0].message.content.strip()
+        
+        # Add knowledge base indicator if relevant context was found
+        if context and "No relevant information found" not in context and "Error accessing" not in context:
+            response += "\n\n📚 *Information from AnQa knowledge base*"
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating knowledge-based response: {e}")
+        return """I apologize, but I'm having trouble accessing information right now. 
+
+For immediate assistance, you can:
+🔍 Ask about specific properties or bookings
+📞 Contact our support team
+💬 Try rephrasing your question
+
+How else can I help you today?"""
+
+def handle_general_question(user_message: str, session_id: str) -> str:
+    """Handle general questions with knowledge base integration"""
+    # First try to get relevant context from knowledge base
+    context = search_knowledge_base(user_message, k=3)
+    
+    # Check if this might be a booking-related question
+    booking_keywords = ["book", "reserve", "available", "price", "cost", "apartment", "room"]
+    if any(keyword in user_message.lower() for keyword in booking_keywords):
+        # Combine knowledge base search with booking assistance
+        response = generate_knowledge_based_response(user_message, session_id)
+        response += "\n\n💡 **Want to book?** Tell me your preferences (dates, area, guests) and I'll show you available properties!"
+        return response
+    
+    # For general questions, use knowledge base
+    return generate_knowledge_based_response(user_message, session_id)
+
+def search_knowledge_base(query: str, k: int = 3) -> str:
+    """Search knowledge base for relevant information"""
+    try:
+        vectorstore = load_or_create_vectorstore()
+        
+        # Search for relevant documents
+        relevant_docs = vectorstore.similarity_search(query, k=k)
+        
+        if not relevant_docs:
+            return "No relevant information found in knowledge base."
+        
+        # Combine relevant content
+        context = "\n\n".join([doc.page_content for doc in relevant_docs])
+        return context
+        
+    except Exception as e:
+        logger.error(f"❌ Error searching knowledge base: {e}")
+        return "Error accessing knowledge base."
+
+# Initialize vectorstore
+vectorstore = load_or_create_vectorstore()
 
 # ================== Load Excel & Bookings ==================
 EXCEL_PATH = "AnQa.xlsx"
@@ -395,30 +577,8 @@ Would you like me to help you adjust your search criteria?"""
         return "\n\n".join(response_parts)
     
     elif intent == "information":
-        # Use OpenAI for general information queries
-        try:
-            completion = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": """You are a helpful hotel and accommodation assistant in Cairo, Egypt. 
-                    You help guests with information about:
-                    - Cairo neighborhoods (Zamalek, Maadi, Garden City, Heliopolis, etc.)
-                    - Local attractions and amenities
-                    - Transportation and getting around
-                    - Booking policies and procedures
-                    - General travel advice for Cairo
-                    
-                    Be friendly, informative, and helpful. If you don't know something specific about a property, 
-                    suggest they ask for more details about specific listings."""},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=500,
-                temperature=0.7
-            )
-            return completion.choices[0].message.content.strip()
-        except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
-            return "I apologize, but I'm having trouble processing your question right now. Please try again or ask about specific properties or booking requests."
+        # Use knowledge base for information queries
+        return generate_knowledge_based_response(user_message, session_id)
     
     elif intent == "confirmation":
         # Handle booking confirmation
@@ -430,21 +590,8 @@ Would you like me to help you adjust your search criteria?"""
             return "I'm not sure which property you'd like to book. Could you please specify the exact property name from the options I provided?"
     
     else:
-        # Default to general assistance
-        return """I'm here to help you with your accommodation needs in Cairo! 
-
-🔍 **What I can help with:**
-- Find and book apartments/hotels
-- Answer questions about Cairo areas
-- Provide information about amenities
-- Help with booking modifications
-
-💡 **Try asking me:**
-- "Show me 2-bedroom apartments in Zamalek"
-- "What's the best area for tourists?"
-- "I need a pet-friendly place for next week"
-
-What would you like to know?"""
+        # Handle general questions using knowledge base
+        return handle_general_question(user_message, session_id)
 
 def try_confirm_booking(session_id: str, user_message: str) -> Optional[str]:
     """Enhanced booking confirmation with better matching"""
@@ -675,6 +822,46 @@ fastapi_app.add_middleware(
 @fastapi_app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# API endpoint for knowledge base management
+@fastapi_app.post("/knowledge/add")
+async def add_knowledge(data: dict):
+    """Add new documents to knowledge base"""
+    try:
+        content = data.get("content", "")
+        source = data.get("source", "manual_input")
+        
+        if not content:
+            return {"error": "Content is required"}
+        
+        # Create document
+        doc = Document(page_content=content, metadata={"source": source})
+        
+        # Add to vectorstore
+        result = add_documents_to_vectorstore([doc])
+        
+        if result:
+            return {"status": "success", "message": "Document added to knowledge base"}
+        else:
+            return {"error": "Failed to add document to knowledge base"}
+            
+    except Exception as e:
+        logger.error(f"Error adding knowledge: {e}")
+        return {"error": "Internal server error"}
+
+@fastapi_app.get("/knowledge/search")
+async def search_knowledge(query: str, k: int = 3):
+    """Search knowledge base"""
+    try:
+        if not query:
+            return {"error": "Query is required"}
+        
+        context = search_knowledge_base(query, k)
+        return {"query": query, "context": context}
+        
+    except Exception as e:
+        logger.error(f"Error searching knowledge: {e}")
+        return {"error": "Internal server error"}
 
 # API endpoint for direct messaging (optional)
 @fastapi_app.post("/chat")
