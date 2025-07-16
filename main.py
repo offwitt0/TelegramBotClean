@@ -123,7 +123,24 @@ def generate_response(user_message, sender_id=None, history=None):
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     # Compose message
-    system_message = f"{get_prompt()}\n\n{kb_context}\n\n{custom_links}\n{suggestions}"
+    chat_history = ""
+    if history:
+        for turn in history[-6:]:  # use only the last few turns
+            role = turn["role"]
+            content = turn["content"]
+            chat_history += f"{role.upper()}: {content}\n"
+
+    system_message = f"""{get_prompt()}
+
+    Previous conversation:
+    {chat_history}
+
+    Knowledge base:
+    {kb_context}
+
+    {custom_links}
+    {suggestions}
+    """
     
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
