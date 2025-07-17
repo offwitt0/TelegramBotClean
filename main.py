@@ -77,25 +77,30 @@ Use the internal knowledge base provided to answer questions clearly and accurat
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
     query_words = query_lower.split()
-    results = []
+    matched = []
+    unmatched = []
 
     for listing in listings_data:
         name = listing.get("name", "").lower()
         city = listing.get("city_hint", "").lower()
         guest_ok = (listing.get("guests") or 0) >= guests
 
-        # Strong match if any word matches city
         city_match = any(word in city for word in query_words)
-
-        # Weak match if any word matches name
         name_match = any(word in name for word in query_words)
 
-        if guest_ok and (city_match or name_match):
-            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
-            rating = listing.get("rating", "No rating")
-            results.append(f"{listing['name']} (⭐ {rating})\n{url}")
+        url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+        rating = listing.get("rating", "No rating")
+        listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
 
-    return results
+        if guest_ok:
+            if city_match or name_match:
+                matched.append(listing_text)
+            else:
+                unmatched.append(listing_text)
+
+    # Prioritize matched listings, but fallback to all available if nothing matches
+    return matched if matched else unmatched
+
 
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
