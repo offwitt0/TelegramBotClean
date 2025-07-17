@@ -9,6 +9,7 @@ import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from PymentLink import Payment
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,11 +68,13 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
     )
 
 def get_prompt():
+    payment_url = Payment()
     return """
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
+if the user/client want to book the room or finialize the payment give them this url: {payment_url}
 """
 
 def find_matching_listings(query, guests=2):
