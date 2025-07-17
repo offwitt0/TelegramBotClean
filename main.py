@@ -28,21 +28,34 @@ def escape_markdown(text: str) -> str:
     return ''.join(f"\\{c}" if c in escape_chars else c for c in text)
 
 # Format links and escape the rest of the text for Telegram MarkdownV2
+import re
+
+# Escape MarkdownV2 special characters
+def escape_markdown(text: str) -> str:
+    escape_chars = r"_*[]()~`>#+-=|{}.!"
+    return ''.join(f"\\{c}" if c in escape_chars else c for c in text)
+
+# Format links and escape the rest of the text for Telegram MarkdownV2
 def format_for_telegram(response_text: str) -> str:
+    # Step 1: Find all URLs
     urls = re.findall(r'https?://\S+', response_text)
     placeholder_template = "__URL_{}__"
-    
+
+    # Step 2: Replace URLs with placeholders
     for i, url in enumerate(urls):
         response_text = response_text.replace(url, placeholder_template.format(i))
 
+    # Step 3: Escape everything else
     escaped_text = escape_markdown(response_text)
 
+    # Step 4: Replace placeholders with formatted links
     for i, url in enumerate(urls):
         escaped_url = escape_markdown(url)
         markdown_link = f"[Click here]({escaped_url})"
         escaped_text = escaped_text.replace(placeholder_template.format(i), markdown_link)
 
     return escaped_text
+
 
 # Payment
 import requests
