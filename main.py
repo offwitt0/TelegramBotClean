@@ -74,8 +74,8 @@ You are a professional, friendly, and detail-oriented guest experience assistant
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
-if the user/client want to book the room or finialize the payment give them this url: {payment_url}
-"""
+If the user/client wants to book the room or finalize the payment, give them this URL: {}
+""".format(payment_url)
 
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
