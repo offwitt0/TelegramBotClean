@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from urllib.parse import quote
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-
+import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
@@ -22,6 +22,27 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 
+# Escape MarkdownV2 special characters
+def escape_markdown(text: str) -> str:
+    escape_chars = r"_*[]()~`>#+-=|{}.!"
+    return ''.join(f"\\{c}" if c in escape_chars else c for c in text)
+
+# Format links and escape the rest of the text for Telegram MarkdownV2
+def format_for_telegram(response_text: str) -> str:
+    urls = re.findall(r'https?://\S+', response_text)
+    placeholder_template = "__URL_{}__"
+    
+    for i, url in enumerate(urls):
+        response_text = response_text.replace(url, placeholder_template.format(i))
+
+    escaped_text = escape_markdown(response_text)
+
+    for i, url in enumerate(urls):
+        escaped_url = escape_markdown(url)
+        markdown_link = f"[Click here]({escaped_url})"
+        escaped_text = escaped_text.replace(placeholder_template.format(i), markdown_link)
+
+    return escaped_text
 
 # Payment
 import requests
@@ -325,7 +346,14 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
-        await update.message.reply_text(reply)
+        # Format reply safely for Telegram
+        safe_text = format_for_telegram(reply)
+        # Send reply using MarkdownV2
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=safe_text,
+            parse_mode="MarkdownV2"
+        )
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
