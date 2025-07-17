@@ -21,39 +21,9 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
-
-
-# Payment
 import requests
 
-# API endpoint
-url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-# Data payload
-data = {
-    "userName": "tonaja Mohamed",
-    "email": "tonaja.mohamed@gmail.com",
-    "roomType": "test",
-    "checkIn": "2025-07-17T12:39:40.090Z",
-    "checkOut": "2025-07-17T12:39:40.091Z",
-    "numberOfGuests": 3,
-    "amountInCents": 7000,
-    "successfulURL": "http://localhost:3000/thanks",
-    "cancelURL": "http://localhost:3000/cancel"
-}
-# Send the POST request
-response = requests.post(url, json=data)
-
-def Payment():
-    # Check the response
-    if response.status_code == 200:
-        result = response.json()
-        PaymentUrl = result['sessionURL']
-        return PaymentUrl
-    else:
-        failed = 'failed to send'
-        return failed
-
-# ================== ENV & CONFIG ==================
+# ================== CONFIGURATION ==================
 load_dotenv()
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
@@ -65,32 +35,74 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 
+# ================== DATA STORES ==================
+def load_data():
+    """Load all required data stores"""
+    with open("listings.json", "r", encoding="utf-8") as f:
+        listings = json.load(f)
+    
+    try:
+        vectorstore = FAISS.load_local(
+            "guest_kb_vectorstore", 
+            embeddings, 
+            allow_dangerous_deserialization=True
+        )
+    except:
+        vectorstore = None
+        logging.warning("Vectorstore not loaded")
+    
+    return listings, vectorstore
+
+listings_data, vectorstore = load_data()
+
+# ================== PAYMENT HANDLER ==================
+def generate_payment_link(user_data: dict):
+    """Generate payment link with user-specific data"""
+    url = "https://subscriptionsmanagement.fastautomate.com/api/Payments/reservation"
+    
+    payload = {
+        "userName": user_data.get("name", "Guest"),
+        "email": user_data.get("email"),
+        "roomType": user_data.get("room_type", "Standard Room"),
+        "checkIn": user_data.get("check_in", datetime.now().isoformat()),
+        "checkOut": user_data.get("check_out", (datetime.now() + timedelta(days=3)).isoformat()),
+        "numberOfGuests": user_data.get("guests", 2),
+        "amountInCents": int(user_data.get("amount", 70) * 100),
+        "successfulURL": f"{os.getenv('BASE_URL')}/thanks",
+        "cancelURL": f"{os.getenv('BASE_URL')}/cancel"
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        return response.json().get('sessionURL')
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Payment API error: {str(e)}")
+        return None
+
+# ================== EMAIL HISTORY ==================
 def load_email_history(email_address):
     try:
         with open("email_history.json", "r") as f:
             history = json.load(f)
         return history.get(email_address, [])
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return []
 
 def save_email_history(email_address, history):
     try:
         with open("email_history.json", "r") as f:
             all_history = json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         all_history = {}
-    all_history[email_address] = history
+    
+    all_history[email_address] = history[-20:]  # Keep only last 20 messages
     with open("email_history.json", "w") as f:
         json.dump(all_history, f, indent=2)
 
-# ================== AIRBNB & DATA ==================
-with open("listings.json", "r", encoding="utf-8") as f:
-    listings_data = json.load(f)
-
-embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
-
+# ================== LISTING MANAGEMENT ==================
 def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
     area_encoded = quote(area)
     return (
@@ -98,16 +110,6 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
         f"?checkin={checkin}&checkout={checkout}&adults={adults}"
         f"&children={children}&infants={infants}&pets={pets}"
     )
-
-def get_prompt():
-    payment_url = Payment()
-    return f"""
-You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
-Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-Only ignore a question if it's completely unrelated to travel.
-Use the internal knowledge base provided to answer questions clearly and accurately.
-If the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}
-"""
 
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
@@ -123,7 +125,7 @@ def find_matching_listings(query, guests=2):
         city_match = any(word in city for word in query_words)
         name_match = any(word in name for word in query_words)
 
-        url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+        url = listing.get("url") or f"https://example.com/listings/{listing['id']}"
         rating = listing.get("rating", "No rating")
         listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
 
@@ -133,9 +135,17 @@ def find_matching_listings(query, guests=2):
             else:
                 unmatched.append(listing_text)
 
-    # Prioritize matched listings, but fallback to all available if nothing matches
-    return matched if matched else unmatched
+    return matched if matched else unmatched[:5]  # Return max 5 unmatched if no matches
 
+# ================== RESPONSE GENERATION ==================
+def get_system_prompt():
+    """Base system prompt without payment info"""
+    return """
+You are a professional, friendly guest experience assistant for short-term rentals in Cairo.
+Always be helpful with questions about vacation stays, bookings, and policies.
+Provide clear, accurate information using the knowledge base.
+For booking requests, ask for: check-in/out dates, guest count, and room preference.
+"""
 
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
@@ -143,94 +153,90 @@ def generate_response(user_message, sender_id=None, history=None):
     checkout = today + timedelta(days=6)
 
     # Search knowledge base
-    relevant_docs = vectorstore.similarity_search(user_message, k=3)
-    kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    print("⚙️ generating response for:", user_message)
+    kb_context = ""
+    if vectorstore:
+        relevant_docs = vectorstore.similarity_search(user_message, k=3)
+        kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    # Match listings using user's message (free text)
-    listings = find_matching_listings(user_message, guests=2)
-    booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
-    booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
+    # Check for booking intent
+    booking_intent = any(kw in user_message.lower() for kw in 
+                        ["book", "booking", "reserve", "reservation", "pay", "payment"])
 
-    if listings:
-        # Try to get the first actual matched listing data
-        matched_listing = None
-        for l in listings_data:
-            if l["name"] in listings[0]:
-                matched_listing = l
-                break
+    # Find matching listings
+    listings = find_matching_listings(user_message)
+    listing_info = "\n\nAvailable listings:\n" + "\n".join(listings) if listings else ""
 
-        if booking_intent_detected and matched_listing:
-            listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
-                        f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
+    # Generate area links
+    areas = ["Zamalek", "Maadi", "Garden City"]
+    area_links = "\n".join(
+        f"[Explore {area}]({generate_airbnb_link(area, checkin, checkout)})" 
+        for area in areas
+    )
 
-            # Standard house rules
-            rules_text = "\n".join([
-                "• Check-in: 3:00 PM",
-                "• Check-out: 12:00 PM",
-                "• Pets: Not allowed",
-                "• Parties: Not allowed",
-                "• Smoking: Not allowed"
-            ])
-
-            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}"
-        else:
-            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
-    else:
-        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
-
-
-    # Optional: Add area links (static Airbnb-style)
-    links = {
-        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    }
-    custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-
-    # Compose message
+    # Build conversation history
     chat_history = ""
     if history:
-        for turn in history[-6:]:  # use only the last few turns
+        for turn in history[-6:]:  # Last 3 exchanges
             role = turn["role"]
-            content = turn["content"]
+            content = turn["content"][:500]  # Truncate long messages
             chat_history += f"{role.upper()}: {content}\n"
 
-    system_message = f"""{get_prompt()}
+    # Prepare messages for OpenAI
+    messages = [
+        {"role": "system", "content": get_system_prompt() + f"\nKnowledge:\n{kb_context}"},
+        *[{"role": msg["role"], "content": msg["content"]} for msg in (history or [])[-6:]],
+        {"role": "user", "content": user_message}
+    ]
 
-    Previous conversation:
-    {chat_history}
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
+        reply = response.choices[0].message.content.strip()
+        
+        # If booking intent detected and we have user email
+        if booking_intent and sender_id and "@" in sender_id:
+            listing = listings[0] if listings else "Standard Room"
+            payment_url = generate_payment_link({
+                "email": sender_id,
+                "room_type": listing,
+                "check_in": checkin.isoformat(),
+                "check_out": checkout.isoformat(),
+                "guests": 2,
+                "amount": 70
+            })
+            
+            if payment_url:
+                reply += f"\n\n[Proceed to Payment]({payment_url})"
+            else:
+                reply += "\n\n⚠️ We couldn't generate a payment link. Please contact support."
 
-    Knowledge base:
-    {kb_context}
-
-    {custom_links}
-    {suggestions}
-    """
+        return reply + f"\n\n{area_links}{listing_info}"
     
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
-        ],
-        max_tokens=1000,
-        temperature=0.7
-    )
-    return response.choices[0].message.content.strip()
+    except Exception as e:
+        logging.error(f"OpenAI error: {str(e)}")
+        return "I'm having trouble processing your request. Please try again later."
 
-
-# ================== EMAIL ==================
+# ================== EMAIL HANDLER ==================
 def send_email(to_email, subject, body):
-    msg = EmailMessage()
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = to_email
-    msg["Subject"] = f"Re: {subject}"
-    msg.set_content(body)
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
-        smtp.starttls()
-        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        smtp.send_message(msg)
+    try:
+        msg = EmailMessage()
+        msg["From"] = EMAIL_ADDRESS
+        msg["To"] = to_email
+        msg["Subject"] = f"Re: {subject}"
+        msg.set_content(body)
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as smtp:
+            smtp.starttls()
+            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        logging.error(f"Email send error: {str(e)}")
+        return False
 
 async def check_email_loop():
     while True:
@@ -238,6 +244,7 @@ async def check_email_loop():
             mail = imaplib.IMAP4_SSL(IMAP_SERVER)
             mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
             mail.select("inbox")
+            
             _, messages = mail.search(None, '(UNSEEN)')
             for num in messages[0].split():
                 _, msg_data = mail.fetch(num, '(RFC822)')
@@ -253,102 +260,82 @@ async def check_email_loop():
                 else:
                     body = msg.get_payload(decode=True).decode()
 
-                print(f"📩 Email from {from_email}: {subject}")
+                logging.info(f"New email from {from_email}: {subject[:50]}...")
 
-                # 🔁 Load chat history
+                # Process email
                 history = load_email_history(from_email)
                 history.append({"role": "user", "content": body})
-
-                # 🧠 Generate reply with memory
+                
                 reply = generate_response(body, from_email, history)
-
-                # ✅ Save new response to history
                 history.append({"role": "assistant", "content": reply})
-                save_email_history(from_email, history)
-
-                # Send email back
-                send_email(from_email, subject, reply)
-                print("✅ Email replied.")
-            mail.logout()
+                
+                if send_email(from_email, subject, reply):
+                    save_email_history(from_email, history)
+                    logging.info(f"Replied to {from_email}")
+                
         except Exception as e:
-            print("❌ Email error:", e)
-        await asyncio.sleep(5)
+            logging.error(f"Email loop error: {str(e)}")
+        finally:
+            await asyncio.sleep(30)
 
-# ================== TELEGRAM ==================
-app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
+# ================== TELEGRAM HANDLER ==================
 def is_valid_email(email_str: str) -> bool:
     return re.match(r"[^@]+@[^@]+\.[^@]+", email_str) is not None
 
-def save_user_email_mapping(user_id: str, email_address: str):
-    mapping_path = "user_mapping.json"
+def save_user_mapping(user_id: str, email: str):
     try:
-        with open(mapping_path, "r") as f:
+        with open("user_mapping.json", "r") as f:
             mapping = json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         mapping = {}
-    mapping[user_id] = email_address
-    with open(mapping_path, "w") as f:
+    
+    mapping[user_id] = email
+    with open("user_mapping.json", "w") as f:
         json.dump(mapping, f, indent=2)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🏨 Welcome to Cairo Stays!\n\n"
+        "Please share your email address to get started:"
+    )
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    context.chat_data["chat_history"] = {}
-    context.chat_data["user_email"] = {}
-
-    await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
-
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    user_id = str(update.effective_user.id)
-
-    if "chat_history" not in context.chat_data:
-        context.chat_data["chat_history"] = {}
-    if user_id not in context.chat_data["chat_history"]:
-        context.chat_data["chat_history"][user_id] = []
-
-    if "user_email" not in context.chat_data:
-        context.chat_data["user_email"] = {}
-    if user_id not in context.chat_data["user_email"]:
-        if is_valid_email(user_message):
-            context.chat_data["user_email"][user_id] = user_message
-            save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
-        else:
-            await update.message.reply_text("📧 Please provide a valid email address to continue.")
+    text = update.message.text
+    
+    # Initialize chat data if not exists
+    if 'chat_data' not in context.chat_data:
+        context.chat_data['chat_data'] = {}
+    if user_id not in context.chat_data['chat_data']:
+        context.chat_data['chat_data'][user_id] = {
+            'history': [],
+            'email': None
+        }
+    
+    chat_data = context.chat_data['chat_data'][user_id]
+    
+    # Handle email collection
+    if not chat_data['email'] and is_valid_email(text):
+        chat_data['email'] = text
+        save_user_mapping(user_id, text)
+        await update.message.reply_text(
+            "✅ Thank you! When are you planning to visit Cairo?"
+        )
         return
-
-    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+    
+    # Add user message to history
+    chat_data['history'].append({"role": "user", "content": text})
+    
+    # Generate response
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    reply = generate_response(text, chat_data['email'], chat_data['history'])
+    
+    # Add assistant response to history
+    chat_data['history'].append({"role": "assistant", "content": reply})
+    await update.message.reply_text(reply)
 
-    try:
-        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
-        await update.message.reply_text(reply)
-        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
-    except Exception as e:
-        await update.message.reply_text("❌ Bot error")
-        logging.error(e)
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
-
-# ================== FASTAPI ==================
+# ================== FASTAPI APP ==================
 fastapi_app = FastAPI()
-
-@fastapi_app.on_event("startup")
-async def start_all():
-    print("📧 Email listener running...")
-    asyncio.create_task(check_email_loop())
-
-    print("🤖 Telegram bot initializing...")
-    await app.initialize()
-    await app.start()
-    asyncio.create_task(app.updater.start_polling())
-
-@fastapi_app.on_event("shutdown")
-async def shutdown_all():
-    print("⛔ Shutting down bot...")
-    await app.stop()
 
 fastapi_app.add_middleware(
     CORSMiddleware,
@@ -358,6 +345,27 @@ fastapi_app.add_middleware(
     allow_headers=["*"],
 )
 
+@fastapi_app.on_event("startup")
+async def startup():
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Starting services...")
+    
+    # Start email checker
+    asyncio.create_task(check_email_loop())
+    
+    # Initialize Telegram bot
+    telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    await telegram_app.initialize()
+    await telegram_app.start()
+    asyncio.create_task(telegram_app.updater.start_polling())
+
+@fastapi_app.on_event("shutdown")
+async def shutdown():
+    logging.info("Shutting down services...")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000)
