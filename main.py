@@ -29,7 +29,7 @@ import requests
 # API endpoint
 url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
 # Data payload
-data = data = {
+data = {
     "userName": "tonaja Mohamed",
     "email": "tonaja.mohamed@gmail.com",
     "roomType": "test",
