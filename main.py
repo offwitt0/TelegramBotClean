@@ -9,6 +9,8 @@ import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +28,6 @@ import requests
 
 # API endpoint
 url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-
 # Data payload
 data = {
     "email": "test4.mohamed@fastautomate.com",
@@ -34,10 +35,8 @@ data = {
     "successfulURL": "http://localhost:3000/thanks",
     "cancelURL": "http://localhost:3000/cancel"
 }
-
 # Send the POST request
 response = requests.post(url, json=data)
-
 
 def Payment():
     # Check the response

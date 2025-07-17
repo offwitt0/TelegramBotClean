@@ -20,8 +20,7 @@ def Payment():
    if response.status_code == 200:
       result = response.json()
       PaymentUrl = result['sessionURL']
-      return print(PaymentUrl)
+      return PaymentUrl
    else:
       failed = 'failed to send'
       return failed
-Payment()
