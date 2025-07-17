@@ -48,7 +48,8 @@ def Payment():
     if response.status_code == 200:
         result = response.json()
         PaymentUrl = result['sessionURL']
-        return PaymentUrl
+        sessionStatus = result['sessionStatus']
+        return result
     else:
         failed = 'failed to send'
         return failed
@@ -301,7 +302,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
-
+    payment_url = Payment()
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
     if user_id not in context.chat_data["chat_history"]:
@@ -313,7 +314,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+            await update.message.reply_text(F"✅ Email saved. When are you planning to travel to Cairo? {payment_url}")
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
