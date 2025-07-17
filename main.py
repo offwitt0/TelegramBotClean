@@ -22,27 +22,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 
-# Escape MarkdownV2 special characters
-def escape_markdown(text: str) -> str:
-    escape_chars = r"_*[]()~`>#+-=|{}.!"
-    return ''.join(f"\\{c}" if c in escape_chars else c for c in text)
-
-# Format links and escape the rest of the text for Telegram MarkdownV2
-def format_for_telegram(response_text: str) -> str:
-    urls = re.findall(r'https?://\S+', response_text)
-    placeholder_template = "__URL_{}__"
-    
-    for i, url in enumerate(urls):
-        response_text = response_text.replace(url, placeholder_template.format(i))
-
-    escaped_text = escape_markdown(response_text)
-
-    for i, url in enumerate(urls):
-        escaped_url = escape_markdown(url)
-        markdown_link = f"[Click here]({escaped_url})"
-        escaped_text = escaped_text.replace(placeholder_template.format(i), markdown_link)
-
-    return escaped_text
 
 # Payment
 import requests
@@ -69,8 +48,7 @@ def Payment():
     if response.status_code == 200:
         result = response.json()
         PaymentUrl = result['sessionURL']
-        sessionStatus = result['sessionStatus']
-        return result
+        return PaymentUrl
     else:
         failed = 'failed to send'
         return failed
@@ -128,8 +106,7 @@ You are a professional, friendly, and detail-oriented guest experience assistant
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
-
-If the user/client wants to book the room or finalize the payment, give them this URL without any changes plz remember i didn't want any changes in this url: `{payment_url}`
+If the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}
 """
 
 def find_matching_listings(query, guests=2):
@@ -324,7 +301,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
-    payment_url = Payment()
+
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
     if user_id not in context.chat_data["chat_history"]:
@@ -336,7 +313,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text(F"✅ Email saved. When are you planning to travel to Cairo? {payment_url}")
+            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
