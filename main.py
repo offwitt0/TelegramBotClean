@@ -108,7 +108,7 @@ Always help with questions related to vacation stays, Airbnb-style bookings, and
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
 
-If the user/client wants to book the room or finalize the payment, give them this URL: `{payment_url}`
+If the user/client wants to book the room or finalize the payment, give them this URL without any changes plz remember i didn't want any changes in this url: `{payment_url}`
 """
 
 def find_matching_listings(query, guests=2):
