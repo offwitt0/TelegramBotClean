@@ -29,9 +29,14 @@ import requests
 # API endpoint
 url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
 # Data payload
-data = {
-    "email": "test4.mohamed@fastautomate.com",
-    "amountInCents": 500,
+data = data = {
+    "userName": "tonaja Mohamed",
+    "email": "tonaja.mohamed@gmail.com",
+    "roomType": "test",
+    "checkIn": "2025-07-17T12:39:40.090Z",
+    "checkOut": "2025-07-17T12:39:40.091Z",
+    "numberOfGuests": 3,
+    "amountInCents": 7000,
     "successfulURL": "http://localhost:3000/thanks",
     "cancelURL": "http://localhost:3000/cancel"
 }
@@ -101,7 +106,7 @@ You are a professional, friendly, and detail-oriented guest experience assistant
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
-If the user/client wants to book the room or finalize the payment, give them this URL: <{payment_url}>
+If the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}
 """
 
 def find_matching_listings(query, guests=2):
