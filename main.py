@@ -114,10 +114,36 @@ def generate_response(user_message, sender_id=None, history=None):
 
     # Match listings using user's message (free text)
     listings = find_matching_listings(user_message, guests=2)
+    booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
+    booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
+
     if listings:
-        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+        # Try to get the first actual matched listing data
+        matched_listing = None
+        for l in listings_data:
+            if l["name"] in listings[0]:
+                matched_listing = l
+                break
+
+        if booking_intent_detected and matched_listing:
+            listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
+                        f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
+
+            # Standard house rules
+            rules_text = "\n".join([
+                "• Check-in: 3:00 PM",
+                "• Check-out: 12:00 PM",
+                "• Pets: Not allowed",
+                "• Parties: Not allowed",
+                "• Smoking: Not allowed"
+            ])
+
+            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}"
+        else:
+            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
+
 
     # Optional: Add area links (static Airbnb-style)
     links = {
