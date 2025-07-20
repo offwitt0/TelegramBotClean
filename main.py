@@ -21,37 +21,32 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
-
-
-# Payment
 import requests
 
-# API endpoint
-url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-# Data payload
-data = {
-    "userName": "tonaja Mohamed",
-    "email": "tonaja.mohamed@gmail.com",
-    "roomType": "test",
-    "checkIn": "2025-07-17T12:39:40.090Z",
-    "checkOut": "2025-07-17T12:39:40.091Z",
-    "numberOfGuests": 3,
-    "amountInCents": 7000,
-    "successfulURL": "http://localhost:3000/thanks",
-    "cancelURL": "http://localhost:3000/cancel"
-}
-# Send the POST request
-response = requests.post(url, json=data)
-
+# Payment
 def Payment():
-    # Check the response
-    if response.status_code == 200:
-        result = response.json()
-        PaymentUrl = result['sessionURL']
-        return PaymentUrl
-    else:
-        failed = 'failed to send'
-        return failed
+    # API endpoint
+    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
+    data = {
+        "userName": "tonaja Mohamed",
+        "email": "tonaja.mohamed@gmail.com",
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
+        "successfulURL": "http://localhost:3000/thanks",
+        "cancelURL": "http://localhost:3000/cancel"
+    }
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            return response.json().get("sessionURL")
+        else:
+            return None
+    except Exception as e:
+        logging.error("Payment error: %s", e)
+        return None
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -101,13 +96,13 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
 
 def get_prompt(payment_url=None):
     base = """
-You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
-Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-Only ignore a question if it's completely unrelated to travel.
-Use the internal knowledge base provided to answer questions clearly and accurately.
-"""
+    You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
+    Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
+    Only ignore a question if it's completely unrelated to travel.
+    Use the internal knowledge base provided to answer questions clearly and accurately.
+    """
     if payment_url:
-        base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}"
+        base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
     return base
 
 def find_matching_listings(query, guests=2):
@@ -143,29 +138,21 @@ def generate_response(user_message, sender_id=None, history=None):
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
 
-    # Search knowledge base
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    print("⚙️ generating response for:", user_message)
 
-    # Match listings using user's message (free text)
     listings = find_matching_listings(user_message, guests=2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
     payment_url = Payment() if booking_intent_detected else None
 
+    suggestions = ""
     if listings:
-        matched_listing = None
-        for l in listings_data:
-            if l["name"] in listings[0]:
-                matched_listing = l
-                break
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
         if booking_intent_detected and matched_listing:
-            listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
-                            f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
-
+            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
                 "• Check-out: 12:00 PM",
@@ -173,14 +160,12 @@ def generate_response(user_message, sender_id=None, history=None):
                 "• Parties: Not allowed",
                 "• Smoking: Not allowed"
             ])
-
-            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}"
+            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
         else:
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-    # Optional: Add area links (static Airbnb-style)
     links = {
         "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
         "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
@@ -188,7 +173,6 @@ def generate_response(user_message, sender_id=None, history=None):
     }
     custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
-    # Compose message
     chat_history = ""
     if history:
         for turn in history[-6:]:
