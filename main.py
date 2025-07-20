@@ -100,11 +100,14 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
     )
 
 def get_prompt():
-    return """
+    payment_url = Payment()
+    return f"""
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
-If the user/client wants to book the room or finalize the payment, clearly indicate that they are ready, but DO NOT share the payment link yourself. The system will handle that.
+Use the internal knowledge base provided to answer questions clearly and accurately.
+
+If the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}
 """
 
 def find_matching_listings(query, guests=2):
@@ -171,10 +174,7 @@ def generate_response(user_message, sender_id=None, history=None):
                 "• Smoking: Not allowed"
             ])
 
-            payment_url = Payment()
-            booking_line = f"\n\n💳 You can proceed with payment here: {payment_url}"
-            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}" + booking_line
-
+            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}"
         else:
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
