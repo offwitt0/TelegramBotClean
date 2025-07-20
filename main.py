@@ -99,16 +99,16 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
         f"&children={children}&infants={infants}&pets={pets}"
     )
 
-def get_prompt():
-    payment_url = Payment()
-    return f"""
+def get_prompt(payment_url=None):
+    base = """
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
-
-If the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}
 """
+    if payment_url:
+        base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this URL: {payment_url}"
+    return base
 
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
@@ -153,8 +153,9 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
+    payment_url = Payment() if booking_intent_detected else None
+
     if listings:
-        # Try to get the first actual matched listing data
         matched_listing = None
         for l in listings_data:
             if l["name"] in listings[0]:
@@ -163,9 +164,8 @@ def generate_response(user_message, sender_id=None, history=None):
 
         if booking_intent_detected and matched_listing:
             listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
-                        f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
+                            f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
 
-            # Standard house rules
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
                 "• Check-out: 12:00 PM",
@@ -180,7 +180,6 @@ def generate_response(user_message, sender_id=None, history=None):
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-
     # Optional: Add area links (static Airbnb-style)
     links = {
         "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
@@ -192,23 +191,21 @@ def generate_response(user_message, sender_id=None, history=None):
     # Compose message
     chat_history = ""
     if history:
-        for turn in history[-6:]:  # use only the last few turns
-            role = turn["role"]
-            content = turn["content"]
-            chat_history += f"{role.upper()}: {content}\n"
+        for turn in history[-6:]:
+            chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
-    system_message = f"""{get_prompt()}
+    system_message = f"""{get_prompt(payment_url)}
 
-    Previous conversation:
-    {chat_history}
+Previous conversation:
+{chat_history}
 
-    Knowledge base:
-    {kb_context}
+Knowledge base:
+{kb_context}
 
-    {custom_links}
-    {suggestions}
-    """
-    
+{custom_links}
+{suggestions}
+"""
+
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -219,7 +216,6 @@ def generate_response(user_message, sender_id=None, history=None):
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
-
 
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
