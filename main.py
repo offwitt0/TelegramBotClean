@@ -153,13 +153,21 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    payment_url = Payment() if booking_intent_detected else None
+    payment_url = None
+    matched_listing = None
+
+    if booking_intent_detected and listings:
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+        if matched_listing:
+            user_email = sender_id if "@" in str(sender_id) else "guest@example.com"
+            user_name = user_email.split("@")[0].replace(".", " ").title()
+            room_type = matched_listing.get("name", "Room")
+            amount = int(matched_listing.get("price_cents", 7000))
+            payment_url = Payment(user_name, user_email, room_type, checkin, checkout, 2, amount)
 
     suggestions = ""
     if listings:
-        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
-
-        if booking_intent_detected and matched_listing:
+        if booking_intent_detected and matched_listing and payment_url:
             listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
@@ -173,13 +181,6 @@ def generate_response(user_message, sender_id=None, history=None):
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
-
-    # links = {
-    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    # }
-    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     chat_history = ""
     if history:
