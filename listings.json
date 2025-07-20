@@ -6,6 +6,7 @@
     "guests": 5,
     "bedrooms": 2,
     "bathrooms": 1,
+    "price": 700,
     "rating": 4.75,
     "amenities": [
       "Kitchen",
@@ -23,6 +24,7 @@
     "guests": 10,
     "bedrooms": 4,
     "bathrooms": 3,
+    "price": 600,
     "rating": 5.0,
     "amenities": [
       "Kitchen",
@@ -40,6 +42,7 @@
     "guests": 10,
     "bedrooms": 3,
     "bathrooms": 2,
+    "price": 500,
     "rating": 5.0,
     "amenities": [
       "Kitchen",
@@ -57,6 +60,7 @@
     "guests": 10,
     "bedrooms": 5,
     "bathrooms": 3,
+    "price": 400,
     "rating": 5.0,
     "amenities": [
       "Kitchen",
@@ -75,6 +79,7 @@
     "bedrooms": 2,
     "bathrooms": 1,
     "rating": 5.0,
+    "price": 400,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -90,6 +95,7 @@
     "guests": 6,
     "bedrooms": 2,
     "bathrooms": 2,
+    "price": 900,
     "rating": 4.9,
     "amenities": [
       "Kitchen",
@@ -108,6 +114,7 @@
     "bedrooms": 2,
     "bathrooms": 2,
     "rating": 5.0,
+    "price": 750,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -124,6 +131,7 @@
     "bedrooms": 2,
     "bathrooms": 2,
     "rating": 5.0,
+    "price": 720,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -140,6 +148,7 @@
     "guests": 7,
     "bedrooms": 3,
     "bathrooms": 2,
+    "price": 780,
     "rating": 4.8,
     "amenities": [
       "Kitchen",
@@ -158,6 +167,7 @@
     "bedrooms": 1,
     "bathrooms": 1,
     "rating": 4.8,
+    "price": 630,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -174,6 +184,7 @@
     "bedrooms": 2,
     "bathrooms": 2,
     "rating": 4.35,
+    "price": 1000,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -191,6 +202,7 @@
     "bedrooms": 1,
     "bathrooms": 1,
     "rating": 5.0,
+    "price": 1300,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -208,6 +220,7 @@
     "bedrooms": 3,
     "bathrooms": 2,
     "rating": 4.6,
+    "price": 1700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -226,6 +239,7 @@
     "bedrooms": 1,
     "bathrooms": 1,
     "rating": 4.9,
+    "price": 550,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -242,6 +256,7 @@
     "bedrooms": 2,
     "bathrooms": 2,
     "rating": 5.0,
+    "price": 550,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -258,6 +273,7 @@
     "bedrooms": 3,
     "bathrooms": 2.5,
     "rating": 4.5,
+    "price": 300,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -277,6 +293,7 @@
     "bedrooms": 3,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 350,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -295,6 +312,7 @@
     "bedrooms": 3,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 710,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -313,6 +331,7 @@
     "bedrooms": 2,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 200,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -331,6 +350,7 @@
     "bedrooms": 2,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 200,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -349,6 +369,7 @@
     "bedrooms": 4,
     "bathrooms": 3.0,
     "rating": 4.5,
+    "price": 100,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -366,6 +387,7 @@
     "bedrooms": 1,
     "bathrooms": 1.0,
     "rating": 4.5,
+    "price": 100,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -383,6 +405,7 @@
     "bedrooms": 2,
     "bathrooms": 1.0,
     "rating": 4.5,
+    "price": 150,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -400,6 +423,7 @@
     "bedrooms": 1,
     "bathrooms": 1.0,
     "rating": 4.5,
+    "price": 150,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -417,6 +441,7 @@
     "bedrooms": 2,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 180,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -434,6 +459,7 @@
     "bedrooms": 2,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 780,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -451,6 +477,7 @@
     "bedrooms": 6,
     "bathrooms": 5.0,
     "rating": 4.5,
+    "price": 800,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -468,6 +495,7 @@
     "bedrooms": 1,
     "bathrooms": 1.5,
     "rating": 4.5,
+    "price": 700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -485,6 +513,7 @@
     "bedrooms": 2,
     "bathrooms": 1.5,
     "rating": null,
+    "price": 700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -502,6 +531,7 @@
     "bedrooms": 3,
     "bathrooms": 2,
     "rating": null,
+    "price": 700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -519,6 +549,7 @@
     "bedrooms": 3,
     "bathrooms": 2,
     "rating": null,
+    "price": 700,
     "amenities": [
     ],
     "url": ""
@@ -531,6 +562,7 @@
     "bedrooms": 2,
     "bathrooms": 1.5,
     "rating": 4.5,
+    "price": 700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -548,6 +580,7 @@
     "bedrooms": 2,
     "bathrooms": 2.0,
     "rating": 4.5,
+    "price": 700,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -565,6 +598,7 @@
     "bedrooms": 4,
     "bathrooms": 3.0,
     "rating": 4.5,
+    "price": 740,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -582,6 +616,7 @@
     "bedrooms": 1,
     "bathrooms": 1.0,
     "rating": 4.5,
+    "price": 500,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -599,6 +634,7 @@
     "bedrooms": 1,
     "bathrooms": 1,
     "rating": null,
+    "price": 500,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -616,6 +652,7 @@
     "bedrooms": 1,
     "bathrooms": 1,
     "rating": null,
+    "price": 500,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -632,6 +669,7 @@
     "bedrooms": null,
     "bathrooms": null,
     "rating": null,
+    "price": 500,
     "amenities": [
     ],
     "url": ""
@@ -644,6 +682,7 @@
     "bedrooms": null,
     "bathrooms": null,
     "rating": null,
+    "price": 500,
     "amenities": [
     ],
     "url": ""
@@ -655,6 +694,7 @@
     "guests": null,
     "bedrooms": null,
     "bathrooms": null,
+    "price": 540,
     "rating": null,
     "amenities": [
     ],
@@ -668,6 +708,7 @@
     "bedrooms": null,
     "bathrooms": null,
     "rating": null,
+    "price": 540,
     "amenities": [
     ],
     "url": ""
@@ -680,6 +721,7 @@
     "bedrooms": null,
     "bathrooms": null,
     "rating": null,
+    "price": 540,
     "amenities": [
     ],
     "url": ""

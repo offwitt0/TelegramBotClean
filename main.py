@@ -25,20 +25,25 @@ import requests
 import string
 
 # Payment
-def Payment():
-    # API endpoint
+def Payment(listing, checkin: datetime, checkout: datetime, guests: int = 2):
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
+
+    nights = (checkout - checkin).days
+    price_per_night = listing.get("price", 1000)  # fallback if missing
+    total_amount = price_per_night * nights
+
     data = {
         "userName": "tonaja Mohamed",
         "email": "tonaja.mohamed@gmail.com",
-        "roomType": "test",
-        "checkIn": "2025-07-17T12:39:40.090Z",
-        "checkOut": "2025-07-17T12:39:40.091Z",
-        "numberOfGuests": 3,
-        "amountInCents": 7000,
+        "roomType": listing.get("name", "unknown"),
+        "checkIn": checkin.isoformat(),
+        "checkOut": checkout.isoformat(),
+        "numberOfGuests": guests,
+        "amountInCents": total_amount * 100,  # API expects cents
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
+
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
@@ -48,6 +53,7 @@ def Payment():
     except Exception as e:
         logging.error("Payment error: %s", e)
         return None
+
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -153,7 +159,12 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    payment_url = Payment() if booking_intent_detected else None
+    matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+
+    payment_url = None
+    if booking_intent_detected and matched_listing:
+        payment_url = Payment(matched_listing, checkin, checkout, guests=2)
+
 
     suggestions = ""
     if listings:
