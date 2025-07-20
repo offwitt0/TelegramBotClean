@@ -177,7 +177,19 @@ def generate_response(user_message, sender_id=None, history=None):
         matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
         if booking_intent_detected and matched_listing:
-            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+            nights = (checkout - checkin).days
+            price_per_night = matched_listing.get("price", 1000)
+            total_price = nights * price_per_night
+
+            listing_text = (
+                f"Great to hear that you're ready to proceed with the booking!\n"
+                f"📍 *{matched_listing['name']}*\n"
+                f"💰 Price per night: {price_per_night} EGP\n"
+                f"📅 Stay: {checkin.strftime('%b %d')} → {checkout.strftime('%b %d')} ({nights} nights)\n"
+                f"💳 Total: {total_price} EGP\n\n"
+                f"To confirm your reservation, please complete payment here:\n{payment_url}\n\n"
+            )
+
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
                 "• Check-out: 12:00 PM",
