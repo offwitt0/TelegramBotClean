@@ -108,29 +108,24 @@ def get_prompt(payment_url=None):
 def find_matching_listings(query, guests=2):
     query_lower = query.lower()
     query_words = query_lower.split()
-    matched = []
-    unmatched = []
+    scored_listings = []
 
     for listing in listings_data:
         name = listing.get("name", "").lower()
         city = listing.get("city_hint", "").lower()
         guest_ok = (listing.get("guests") or 0) >= guests
 
-        city_match = any(word in city for word in query_words)
-        name_match = any(word in name for word in query_words)
-
-        url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
-        rating = listing.get("rating", "No rating")
-        listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
+        match_score = sum(word in name or word in city for word in query_words)
 
         if guest_ok:
-            if city_match or name_match:
-                matched.append(listing_text)
-            else:
-                unmatched.append(listing_text)
+            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+            rating = listing.get("rating", "No rating")
+            listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
+            scored_listings.append((match_score, listing_text))
 
-    # Prioritize matched listings, but fallback to all available if nothing matches
-    return matched if matched else unmatched
+    # Sort by score (highest first) and return only the text part
+    scored_listings.sort(reverse=True, key=lambda x: x[0])
+    return [lt for score, lt in scored_listings if score > 0][:5] or [lt for score, lt in scored_listings[:3]]
 
 
 def generate_response(user_message, sender_id=None, history=None):
