@@ -25,25 +25,20 @@ import requests
 import string
 
 # Payment
-def Payment(listing, checkin: datetime, checkout: datetime, guests: int = 2):
+def Payment():
+    # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-
-    nights = (checkout - checkin).days
-    price_per_night = listing.get("price", 1000)  # fallback if missing
-    total_amount = price_per_night * nights
-
     data = {
         "userName": "tonaja Mohamed",
         "email": "tonaja.mohamed@gmail.com",
-        "roomType": listing.get("name", "unknown"),
-        "checkIn": checkin.isoformat(),
-        "checkOut": checkout.isoformat(),
-        "numberOfGuests": guests,
-        "amountInCents": total_amount * 100,  # API expects cents
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
-
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
@@ -53,7 +48,6 @@ def Payment(listing, checkin: datetime, checkout: datetime, guests: int = 2):
     except Exception as e:
         logging.error("Payment error: %s", e)
         return None
-
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -147,14 +141,6 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def extract_listing_from_message(message: str):
-    message_clean = message.lower().translate(str.maketrans('', '', string.punctuation))
-    for listing in listings_data:
-        listing_name = listing.get("name", "").lower()
-        if listing_name in message_clean:
-            return listing
-    return None
-
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
@@ -167,46 +153,14 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    # 🔍 Try to extract the listing name from the user's message directly
-    matched_listing = extract_listing_from_message(user_message)
-    if not matched_listing and listings:
-        # fallback to first listing if none matched by name
-        listing_name_candidate = listings[0].split(" (⭐")[0].strip()
-        for l in listings_data:
-            if l["name"].strip().lower() == listing_name_candidate.lower():
-                matched_listing = l
-                break
-
-    payment_url = None
-    if booking_intent_detected and matched_listing:
-        payment_url = Payment(matched_listing, checkin, checkout, guests=2)
-
+    payment_url = Payment() if booking_intent_detected else None
 
     suggestions = ""
     if listings:
-        def match_listing_by_name(name_fragment):
-            name_fragment = name_fragment.lower()
-            for l in listings_data:
-                if name_fragment in l["name"].lower():
-                    return l
-            return None
-
-        matched_listing = match_listing_by_name(listings[0])
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
         if booking_intent_detected and matched_listing:
-            nights = (checkout - checkin).days
-            price_per_night = matched_listing.get("price", 1000)
-            total_price = nights * price_per_night
-
-            listing_text = (
-                f"Great to hear that you're ready to proceed with the booking!\n"
-                f"📍 *{matched_listing['name']}*\n"
-                f"💰 Price per night: {price_per_night} EGP\n"
-                f"📅 Stay: {checkin.strftime('%b %d')} → {checkout.strftime('%b %d')} ({nights} nights)\n"
-                f"💳 Total: {total_price} EGP\n\n"
-                f"To confirm your reservation, please complete payment here:\n{payment_url}\n\n"
-            )
-
+            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
                 "• Check-out: 12:00 PM",
