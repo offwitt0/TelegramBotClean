@@ -147,6 +147,14 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
+def extract_listing_from_message(message: str):
+    message_clean = message.lower().translate(str.maketrans('', '', string.punctuation))
+    for listing in listings_data:
+        listing_name = listing.get("name", "").lower()
+        if listing_name in message_clean:
+            return listing
+    return None
+
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
@@ -159,8 +167,10 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    matched_listing = None
-    if listings:
+    # 🔍 Try to extract the listing name from the user's message directly
+    matched_listing = extract_listing_from_message(user_message)
+    if not matched_listing and listings:
+        # fallback to first listing if none matched by name
         listing_name_candidate = listings[0].split(" (⭐")[0].strip()
         for l in listings_data:
             if l["name"].strip().lower() == listing_name_candidate.lower():
@@ -174,7 +184,14 @@ def generate_response(user_message, sender_id=None, history=None):
 
     suggestions = ""
     if listings:
-        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+        def match_listing_by_name(name_fragment):
+            name_fragment = name_fragment.lower()
+            for l in listings_data:
+                if name_fragment in l["name"].lower():
+                    return l
+            return None
+
+        matched_listing = match_listing_by_name(listings[0])
 
         if booking_intent_detected and matched_listing:
             nights = (checkout - checkin).days
