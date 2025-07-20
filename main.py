@@ -156,8 +156,15 @@ def generate_response(user_message, sender_id=None, history=None):
     payment_url = None
     matched_listing = None
 
-    if booking_intent_detected and listings:
-        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+    payment_url = None
+    matched_listing = None
+
+    if booking_intent_detected:
+        for l in listings_data:
+            if l["name"].lower() in user_message.lower() or user_message.lower() in l["name"].lower():
+                matched_listing = l
+                break
+
         if matched_listing:
             user_email = sender_id if "@" in str(sender_id) else "guest@example.com"
             user_name = user_email.split("@")[0].replace(".", " ").title()
