@@ -137,6 +137,11 @@ def find_matching_listings(query, guests=2):
     # Prioritize matched listings, but fallback to all available if nothing matches
     return matched if matched else unmatched
 
+def generate_payment_message(listing_name, payment_url):
+    return f"""Great to hear that you're ready to proceed with the booking! To finalize your reservation for the **{listing_name}** in Cairo, Egypt, please complete the payment through this secure link: [Payment Link]({payment_url}).
+
+If you encounter any issues or need further assistance, feel free to reach out. Congratulations on your upcoming stay in Cairo! 🌟🏡
+"""
 
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
@@ -163,8 +168,9 @@ def generate_response(user_message, sender_id=None, history=None):
                 break
 
         if booking_intent_detected and matched_listing:
-            listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
-                            f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
+            payment_message = generate_payment_message(matched_listing["name"], payment_url)
+            listing_text = payment_message + f"\n\n**Listing Details:**\n{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})\n{matched_listing['url']}"
+
 
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
