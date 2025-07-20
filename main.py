@@ -159,7 +159,13 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+    matched_listing = None
+    if listings:
+        listing_name_candidate = listings[0].split(" (⭐")[0].strip()
+        for l in listings_data:
+            if l["name"].strip().lower() == listing_name_candidate.lower():
+                matched_listing = l
+                break
 
     payment_url = None
     if booking_intent_detected and matched_listing:
