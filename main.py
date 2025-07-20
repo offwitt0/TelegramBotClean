@@ -22,6 +22,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
+import string
 
 # Payment
 def Payment():
@@ -86,13 +87,13 @@ with open("listings.json", "r", encoding="utf-8") as f:
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
-def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
-    area_encoded = quote(area)
-    return (
-        f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-        f"?checkin={checkin}&checkout={checkout}&adults={adults}"
-        f"&children={children}&infants={infants}&pets={pets}"
-    )
+# def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
+#     area_encoded = quote(area)
+#     return (
+#         f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
+#         f"?checkin={checkin}&checkout={checkout}&adults={adults}"
+#         f"&children={children}&infants={infants}&pets={pets}"
+#     )
 
 def get_prompt(payment_url=None):
     base = """
@@ -106,27 +107,39 @@ def get_prompt(payment_url=None):
     return base
 
 def find_matching_listings(query, guests=2):
-    query_lower = query.lower()
-    query_words = query_lower.split()
-    scored_listings = []
+    query_clean = query.lower().translate(str.maketrans('', '', string.punctuation))
+    query_words = query_clean.split()
+
+    matched = []
+    fallback = []
 
     for listing in listings_data:
-        name = listing.get("name", "").lower()
-        city = listing.get("city_hint", "").lower()
+        name = listing.get("name", "")
+        city = listing.get("city_hint", "")
         guest_ok = (listing.get("guests") or 0) >= guests
 
-        match_score = sum(word in name or word in city for word in query_words)
+        if not guest_ok:
+            continue
 
-        if guest_ok:
-            url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
-            rating = listing.get("rating", "No rating")
-            listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
-            scored_listings.append((match_score, listing_text))
+        name_lower = name.lower()
+        city_lower = city.lower()
+        url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
+        rating = listing.get("rating", "No rating")
+        listing_text = f"{name} (⭐ {rating})\n{url}"
 
-    # Sort by score (highest first) and return only the text part
-    scored_listings.sort(reverse=True, key=lambda x: x[0])
-    return [lt for score, lt in scored_listings if score > 0][:5] or [lt for score, lt in scored_listings[:3]]
+        # Strong match: query contains exact city name
+        if any(q == city_lower for q in query_words):
+            matched.append(listing_text)
+        # Medium match: query contains words from name or city
+        elif any(q in name_lower or q in city_lower for q in query_words):
+            fallback.append(listing_text)
 
+    if matched:
+        return matched[:5]
+    elif fallback:
+        return fallback[:3]
+    else:
+        return []
 
 def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
@@ -161,12 +174,12 @@ def generate_response(user_message, sender_id=None, history=None):
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-    links = {
-        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    }
-    custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
+    # links = {
+    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
+    # }
+    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     chat_history = ""
     if history:
@@ -181,7 +194,6 @@ Previous conversation:
 Knowledge base:
 {kb_context}
 
-{custom_links}
 {suggestions}
 """
 
