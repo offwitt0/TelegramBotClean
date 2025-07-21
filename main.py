@@ -157,15 +157,20 @@ def generate_response(user_message, sender_id=None, history=None):
     # Extract name from email as a fallback
     user_name = sender_id.split("@")[0].replace(".", " ").title() if sender_id and "@" in sender_id else "Guest"
     email_address = sender_id if sender_id and "@" in sender_id else "guest@example.com"
-
+    payment_url = None
+    matched_listing = None
     if booking_intent_detected:
-        room_type = "Deluxe Room"
-        amount_cents = 7000
-        checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
-        checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
-        payment_url = Payment(user_name, email_address, room_type, checkin_iso, checkout_iso, 2, amount_cents)
-    else:
-        payment_url = None
+        for l in listings_data:
+            if l["name"].lower() in user_message.lower():
+                matched_listing = l
+                break
+
+        if matched_listing:
+            room_type = matched_listing["name"]
+            amount_cents = matched_listing.get("price", 7000) * 100  # assuming 'price' is in EGP
+            checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
+            checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
+            payment_url = Payment(user_name, email_address, room_type, checkin_iso, checkout_iso, 2, amount_cents)
 
     suggestions = ""
     if listings:
