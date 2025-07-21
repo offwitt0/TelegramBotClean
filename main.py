@@ -29,11 +29,11 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
     # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
-        "userName": "user_name",
-        "email": "email",
-        "roomType": "room_type",
-        "checkIn": "checkin",
-        "checkOut": "checkout",
+        "userName": user_name,
+        "email": email,
+        "roomType": room_type,
+        "checkIn": checkin,
+        "checkOut": checkout,
         "numberOfGuests": number_of_guests,
         "amountInEGP": amount_egp,
         "successfulURL": "http://localhost:3000/thanks",
