@@ -25,17 +25,16 @@ import requests
 import string
 
 # Payment
-def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amount_egp):
-    # API endpoint
+def Payment(user_name, email, room_type, check_in, check_out, number_of_guests, amount_in_egp):
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
         "userName": user_name,
         "email": email,
         "roomType": room_type,
-        "checkIn": checkin,
-        "checkOut": checkout,
+        "checkIn": check_in,
+        "checkOut": check_out,
         "numberOfGuests": number_of_guests,
-        "amountInEGP": amount_egp,
+        "amountInEGP": amount_in_egp,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
@@ -44,10 +43,9 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         if response.status_code == 200:
             return response.json().get("sessionURL")
         else:
-            logging.error(f"Payment error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        logging.error("Payment exception: %s", e)
+        logging.error("Payment error: %s", e)
         return None
 
 # ================== ENV & CONFIG ==================
@@ -96,7 +94,7 @@ vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangero
 #         f"&children={children}&infants={infants}&pets={pets}"
 #     )
 
-def get_prompt(payment_url = None):
+def get_prompt(payment_url=None):
     base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
@@ -150,53 +148,31 @@ def generate_response(user_message, sender_id=None, history=None):
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    listings = find_matching_listings(user_message, guests=2)
+    # Get user email from history or context
+    user_email = None
+    if history:
+        for entry in history:
+            if entry['role'] == 'user':
+                user_email = context.chat_data['user_email'].get(sender_id)
+
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    # 🔍 Determine guest info
-    if sender_id and "@" in sender_id:
-        user_email = sender_id
-        user_name = sender_id.split("@")[0].replace(".", " ").title()
-    else:
-        user_email = get_user_email_from_mapping(sender_id) or "guest@example.com"
-        user_name = user_email.split("@")[0].replace(".", " ").title()
-
     payment_url = None
-    matched_listing = None
-
-    if listings:
-        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
-
-    if booking_intent_detected and matched_listing:
-        room_type = matched_listing["name"]
-        amount_egp = matched_listing.get("price", 700)
-        checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
-        checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
-
-        print("🔁 Sending payment request with data:")
-        print({
-            "userName": user_name,
-            "email": user_email,
-            "roomType": room_type,
-            "checkIn": checkin_iso,
-            "checkOut": checkout_iso,
-            "numberOfGuests": 2,
-            "amountInEGP": amount_egp
-        })
-
+    if booking_intent_detected and user_email:
         payment_url = Payment(
-            user_name,
-            user_email,
-            room_type,
-            checkin_iso,
-            checkout_iso,
-            2,
-            amount_egp
+            user_name="tonaja Mohamed",  # Replace this with dynamic user name if available
+            email=user_email,
+            room_type="test",  # Replace with actual room type if necessary
+            check_in=checkin.isoformat(),
+            check_out=checkout.isoformat(),
+            number_of_guests=3,  # Set dynamically based on user input
+            amount_in_cents=7000  # Adjust based on your pricing logic
         )
 
-
     suggestions = ""
+    listings = find_matching_listings(user_message, guests=3)  # Adjust guests as needed
+
     if listings:
         matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
@@ -215,28 +191,20 @@ def generate_response(user_message, sender_id=None, history=None):
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-    # links = {
-    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    # }
-    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-
     chat_history = ""
     if history:
         for turn in history[-6:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
     system_message = f"""{get_prompt(payment_url)}
+    Previous conversation:
+    {chat_history}
 
-Previous conversation:
-{chat_history}
+    Knowledge base:
+    {kb_context}
 
-Knowledge base:
-{kb_context}
-
-{suggestions}
-"""
+    {suggestions}
+    """
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -320,20 +288,12 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
-def get_user_email_from_mapping(user_id: str) -> str:
-    try:
-        with open("user_mapping.json", "r") as f:
-            mapping = json.load(f)
-        return mapping.get(user_id)
-    except FileNotFoundError:
-        return None
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     context.chat_data["chat_history"] = {}
     context.chat_data["user_email"] = {}
 
-    await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
+    await update.message.reply_text("Welcome! Please enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
