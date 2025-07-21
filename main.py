@@ -23,15 +23,7 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
-import logging
-
-logging.basicConfig(level=logging.INFO)
-
- 
-#hello ive changed this here
-#hello im trying to push again
-# Payment
- 
+import logging 
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -302,15 +294,12 @@ async def send_email_to_api(user_id: str, email: str):
         "cancelURL": "http://localhost:3000/cancel"
     }
     async with httpx.AsyncClient() as client:
-      response = await client.post(url, json=payload)
-    
-
-    if response.status_code == 200:
-        result = await response.json()  # ✅ FIXED: use await here
-        return result.get('sessionURL')
-    else:
-        failed = 'failed to send'
-        return failed 
+        response = await client.post(
+            "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation",
+            json=payload
+        )
+        result = response.json()  # ✅ Do NOT use `await`
+        return result
 
  
  
@@ -396,4 +385,6 @@ fastapi_app.add_middleware(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
+    asyncio.run(send_email_to_api("123", "test@example.com"))
+
  
