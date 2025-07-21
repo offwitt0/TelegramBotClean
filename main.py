@@ -1,3 +1,4 @@
+
 import os
 import json
 import logging
@@ -11,8 +12,7 @@ from datetime import datetime, timedelta
 from urllib.parse import quote
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-import dateutil.parser
-import calendar
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
@@ -22,67 +22,41 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
+import httpx
+
+import logging
+   
+# try to reconnect   
+
 import requests
 import string
 
 # Payment
-def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
+def Payment(user_name: str, email: str, room_type: str, checkin: str, checkout: str, number_of_guests: int, amount_egp: int):
+    # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
         "userName": user_name,
         "email": email,
         "roomType": room_type,
-        "checkIn": checkin.isoformat(),
-        "checkOut": checkout.isoformat(),
+        "checkIn": checkin,
+        "checkOut": checkout,
         "numberOfGuests": number_of_guests,
-        "amountInCents": int(amountInCents),
+        "amountInEGP": amount_egp * 100,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
 
-    print("🔍 Payload to API:", data)
     try:
         response = requests.post(url, json=data)
-        print("📨 Status Code:", response.status_code)
-        print("📨 Response Text:", response.text)
-
         if response.status_code == 200:
-            session_url = response.json().get("sessionURL")
-            print("✅ Stripe Session URL:", session_url)
-            return session_url
+            return response.json().get("sessionURL")
         else:
             return None
     except Exception as e:
         logging.error("Payment error: %s", e)
-        print("❌ Exception occurred:", e)
         return None
 
-def extract_dates_from_message(message):
-    try:
-        # Example: "from 20 to 25 Aug" or "20 to 25 Aug"
-        pattern = r'(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(\w{3,9})'
-        match = re.search(pattern, message.lower())
-        if match:
-            day1 = int(match.group(1))
-            day2 = int(match.group(2))
-            month_str = match.group(3)
-
-            # Try to convert month to number
-            try:
-                month = list(calendar.month_name).index(month_str.capitalize())
-                if month == 0:
-                    month = list(calendar.month_abbr).index(month_str.capitalize())
-            except ValueError:
-                return None, None
-
-            current_year = datetime.now().year
-            checkin = datetime(current_year, month, day1)
-            checkout = datetime(current_year, month, day2)
-            if checkin < checkout:
-                return checkin.date(), checkout.date()
-    except:
-        pass
-    return None, None
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -177,12 +151,10 @@ def find_matching_listings(query, guests=2):
         return []
 
 def generate_response(user_message, sender_id=None, history=None):
-    checkin, checkout = extract_dates_from_message(user_message)
-    if not checkin or not checkout:
-        today = datetime.today().date()
-        checkin = today + timedelta(days=3)
-        checkout = today + timedelta(days=6)
-        Days = (checkout - checkin).days
+    today = datetime.today().date()
+    checkin = today + timedelta(days=3)
+    checkout = today + timedelta(days=6)
+
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -190,40 +162,53 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    matched_listing = next(
-        (l for l in listings_data if l["name"].lower() in user_message.lower()),
-        None
-    )
-    user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+    user_email = sender_id if "@" in str(sender_id) else "guest@example.com"
+    guest_count = 2  # Default
+    room_type = "Standard"  # Default or inferred from matched listing
+    amount = 700  # Default amount in EGP
 
-    payment_url = None
-    suggestions = ""
+    checkin_str = checkin.isoformat()
+    checkout_str = checkout.isoformat()
 
-    if booking_intent_detected and matched_listing:
-        amount = matched_listing.get("price", 7000)
+    if booking_intent_detected:
         payment_url = Payment(
             user_name="Guest",
             email=user_email,
-            room_type=matched_listing["name"],
-            checkin=checkin,
-            checkout=checkout,
-            number_of_guests=2,
-            amountInCents=int(amount * 100)
+            room_type=room_type,
+            checkin=checkin_str,
+            checkout=checkout_str,
+            number_of_guests=guest_count,
+            amount_egp=amount
         )
-        listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
-        rules_text = "\n".join([
-            "• Check-in: 3:00 PM",
-            "• Check-out: 12:00 PM",
-            "• Pets: Not allowed",
-            "• Parties: Not allowed",
-            "• Smoking: Not allowed"
-        ])
-        suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
+    else:
+        payment_url = None
 
-    elif listings:
-        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+
+    suggestions = ""
+    if listings:
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+
+        if booking_intent_detected and matched_listing:
+            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+            rules_text = "\n".join([
+                "• Check-in: 3:00 PM",
+                "• Check-out: 12:00 PM",
+                "• Pets: Not allowed",
+                "• Parties: Not allowed",
+                "• Smoking: Not allowed"
+            ])
+            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
+        else:
+            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
+
+    # links = {
+    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
+    # }
+    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     chat_history = ""
     if history:
@@ -322,73 +307,93 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
+ 
+ 
+def save_payment_url(user_id: str, payment_url: str):
+    path = "payment_urls.json"
+    try:
+        with open(path, "r") as f:
+            urls = json.load(f)
+    except FileNotFoundError:
+        urls = {}
+    urls[user_id] = payment_url
+    with open(path, "w") as f:
+        json.dump(urls, f, indent=2)
+ 
+ 
+async def send_email_to_api(user_id: str, email: str):
+    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
+    payload = {
+        "userName": "tonaja Mohamed",
+        "email": email,
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
+        "successfulURL": "http://localhost:3000/thanks",
+        "cancelURL": "http://localhost:3000/cancel"
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation",
+            json=payload
+        )
+        result = response.json()  # ✅ Do NOT use `await`
+        return result
+
+ 
+ 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     context.chat_data["chat_history"] = {}
     context.chat_data["user_email"] = {}
-
     await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
-
+ 
+ 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
-    now = datetime.utcnow()
-
-    context.chat_data.setdefault("chat_history", {})
-    context.chat_data.setdefault("user_email", {})
-    context.chat_data.setdefault("last_active", {})
-    context.chat_data.setdefault("bot_messages", {})
-
-    # Inactivity check
-    last_active = context.chat_data["last_active"].get(user_id)
-    if last_active and (now - last_active).total_seconds() > 120:
-        for msg_id in context.chat_data["bot_messages"].get(user_id, []):
-            try:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
-            except Exception as e:
-                logging.warning(f"⚠️ Failed to delete message {msg_id}: {e}")
-
-        context.chat_data["chat_history"].pop(user_id, None)
-        context.chat_data["user_email"].pop(user_id, None)
-        context.chat_data["last_active"].pop(user_id, None)
-        context.chat_data["bot_messages"].pop(user_id, None)
-
-        await update.message.reply_text("🕒 Your session has been reset due to inactivity. Please enter your email to get started.")
-        return
-
-    # Update last active time
-    context.chat_data["last_active"][user_id] = now
-
-    # Handle new users who haven't sent email yet
+ 
+    if "chat_history" not in context.chat_data:
+        context.chat_data["chat_history"] = {}
+    if user_id not in context.chat_data["chat_history"]:
+        context.chat_data["chat_history"][user_id] = []
+ 
+    if "user_email" not in context.chat_data:
+        context.chat_data["user_email"] = {}
+ 
     if user_id not in context.chat_data["user_email"]:
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+            try:
+                payment_url = await send_email_to_api(user_id, user_message)
+                if payment_url:
+                    save_payment_url(user_id, payment_url)
+                    await update.message.reply_text(f"✅ Email saved.\n💳 Your payment link: {payment_url}")
+                else:
+                    await update.message.reply_text("⚠️ Email saved but no payment link received.")
+            except Exception as e:
+                logging.error(f"Failed to get/store payment URL: {e}")
+                await update.message.reply_text("❌ Email saved but payment URL could not be generated.")
+            return
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
-        return
-    
-    # Initialize history if needed
-    context.chat_data["chat_history"].setdefault(user_id, [])
+            return
+ 
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
-
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-
+ 
     try:
-        reply = generate_response(
-            user_message,
-            context.chat_data["user_email"][user_id],
-            context.chat_data["chat_history"][user_id]
-        )
-        sent = await update.message.reply_text(reply)
-        context.chat_data["bot_messages"].setdefault(user_id, []).append(sent.message_id)
+        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
+        await update.message.reply_text(reply)
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
-
-
+        
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 
@@ -420,4 +425,5 @@ fastapi_app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
+    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
