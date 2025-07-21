@@ -12,6 +12,7 @@ from urllib.parse import quote
 import sys
 import httpx
 sys.stdout.reconfigure(encoding='utf-8')
+
  
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,10 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
  
 #hello ive changed this here
 #hello im trying to push again
@@ -299,8 +304,6 @@ async def send_email_to_api(user_id: str, email: str):
     async with httpx.AsyncClient() as client:
       response = await client.post(url, json=payload)
     
-    logging.info(f"API Status Code: {response.status_code}")
-    logging.info(f"API Response Text: {response.text}")
 
     if response.status_code == 200:
         result = await response.json()  # ✅ FIXED: use await here
