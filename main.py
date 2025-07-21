@@ -75,14 +75,13 @@ def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=
     )
  
 def get_prompt():
-    payment_url = Payment()
     return f"""
 You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
 Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
 Only ignore a question if it's completely unrelated to travel.
 Use the internal knowledge base provided to answer questions clearly and accurately.
  
-If the user/client wants to book the room or finalize the payment, give them this URL without any changes plz remember i didn't want any changes in this url: `{payment_url}`
+If the user/client wants to book the room or finalize the payment, give them this URL without any changes plz remember i didn't want any changes in this url:`
 """
  
 def find_matching_listings(query, guests=2):
