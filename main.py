@@ -386,6 +386,5 @@ fastapi_app.add_middleware(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
-    asyncio.run(send_email_to_api("123", "test@example.com"))
 
  
