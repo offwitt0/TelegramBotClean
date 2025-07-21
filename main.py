@@ -298,9 +298,13 @@ async def send_email_to_api(user_id: str, email: str):
     }
     async with httpx.AsyncClient() as client:
       response = await client.post(url, json=payload)
+    
+    logging.info(f"API Status Code: {response.status_code}")
+    logging.info(f"API Response Text: {response.text}")
+
     if response.status_code == 200:
         result = await response.json()  # ✅ FIXED: use await here
-        return result['sessionURL']
+        return result.get('sessionURL')
     else:
         failed = 'failed to send'
         return failed 
