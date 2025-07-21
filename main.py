@@ -10,28 +10,44 @@ from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import sys
-import httpx
 sys.stdout.reconfigure(encoding='utf-8')
 
- 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
- 
+
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
-import logging
+import requests
+import string
 
-logging.basicConfig(level=logging.INFO)
-
- 
-#hello ive changed this here
-#hello im trying to push again
-# Payment
- 
+# Payment function updated to accept dynamic user data
+def Payment(user_data):
+    # API endpoint
+    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
+    data = {
+        "userName": user_data.get("userName", "Guest User"),
+        "email": user_data.get("email", "default@example.com"),
+        "roomType": user_data.get("roomType", "standard"),
+        "checkIn": user_data.get("checkIn", (datetime.today() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
+        "checkOut": user_data.get("checkOut", (datetime.today() + timedelta(days=6)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
+        "numberOfGuests": user_data.get("numberOfGuests", 2),
+        "amountInCents": user_data.get("amountInCents", 7000),
+        "successfulURL": "http://localhost:3000/thanks",
+        "cancelURL": "http://localhost:3000/cancel"
+    }
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            return response.json().get("sessionURL")
+        else:
+            return None
+    except Exception as e:
+        logging.error("Payment error: %s", e)
+        return None
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -39,13 +55,13 @@ EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
- 
+
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
- 
+
 client = OpenAI(api_key=OPENAI_API_KEY)
- 
+
 def load_email_history(email_address):
     try:
         with open("email_history.json", "r") as f:
@@ -53,7 +69,7 @@ def load_email_history(email_address):
         return history.get(email_address, [])
     except FileNotFoundError:
         return []
- 
+
 def save_email_history(email_address, history):
     try:
         with open("email_history.json", "r") as f:
@@ -63,88 +79,78 @@ def save_email_history(email_address, history):
     all_history[email_address] = history
     with open("email_history.json", "w") as f:
         json.dump(all_history, f, indent=2)
- 
+
 # ================== AIRBNB & DATA ==================
 with open("listings.json", "r", encoding="utf-8") as f:
     listings_data = json.load(f)
- 
+
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
- 
-def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
-    area_encoded = quote(area)
-    return (
-        f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-        f"?checkin={checkin}&checkout={checkout}&adults={adults}"
-        f"&children={children}&infants={infants}&pets={pets}"
-    )
- 
-def get_prompt():
-    return f"""
-You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
-Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-Only ignore a question if it's completely unrelated to travel.
-Use the internal knowledge base provided to answer questions clearly and accurately.
- 
-If the user/client wants to book the room or finalize the payment, give them this URL without any changes plz remember i didn't want any changes in this url:`
-"""
- 
+
+def get_prompt(payment_url=None):
+    base = """
+    You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
+    Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
+    Only ignore a question if it's completely unrelated to travel.
+    Use the internal knowledge base provided to answer questions clearly and accurately.
+    """
+    if payment_url:
+        base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
+    return base
+
 def find_matching_listings(query, guests=2):
-    query_lower = query.lower()
-    query_words = query_lower.split()
+    query_clean = query.lower().translate(str.maketrans('', '', string.punctuation))
+    query_words = query_clean.split()
+
     matched = []
-    unmatched = []
- 
+    fallback = []
+
     for listing in listings_data:
-        name = listing.get("name", "").lower()
-        city = listing.get("city_hint", "").lower()
+        name = listing.get("name", "")
+        city = listing.get("city_hint", "")
         guest_ok = (listing.get("guests") or 0) >= guests
- 
-        city_match = any(word in city for word in query_words)
-        name_match = any(word in name for word in query_words)
- 
+
+        if not guest_ok:
+            continue
+
+        name_lower = name.lower()
+        city_lower = city.lower()
         url = listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{listing['id']}"
         rating = listing.get("rating", "No rating")
-        listing_text = f"{listing['name']} (⭐ {rating})\n{url}"
- 
-        if guest_ok:
-            if city_match or name_match:
-                matched.append(listing_text)
-            else:
-                unmatched.append(listing_text)
- 
-    # Prioritize matched listings, but fallback to all available if nothing matches
-    return matched if matched else unmatched
- 
- 
-def generate_response(user_message, sender_id=None, history=None):
+        listing_text = f"{name} (⭐ {rating})\n{url}"
+
+        if any(q == city_lower for q in query_words):
+            matched.append(listing_text)
+        elif any(q in name_lower or q in city_lower for q in query_words):
+            fallback.append(listing_text)
+
+    if matched:
+        return matched[:5]
+    elif fallback:
+        return fallback[:3]
+    else:
+        return []
+
+def generate_response(user_message, sender_id=None, history=None, user_data=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
- 
-    # Search knowledge base
+
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    print("⚙️ generating response for:", user_message)
- 
-    # Match listings using user's message (free text)
-    listings = find_matching_listings(user_message, guests=2)
+
+    listings = find_matching_listings(user_message, guests=user_data.get("numberOfGuests", 2) if user_data else 2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
- 
+
+    payment_url = Payment(user_data) if booking_intent_detected and user_data else None
+
+    suggestions = ""
     if listings:
-        # Try to get the first actual matched listing data
-        matched_listing = None
-        for l in listings_data:
-            if l["name"] in listings[0]:
-                matched_listing = l
-                break
- 
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+
         if booking_intent_detected and matched_listing:
-            listing_text = f"Great! Here's the listing you’re interested in:\n\n" \
-                        f"**{matched_listing['name']} (⭐ {matched_listing.get('rating', 'N/A')})**\n{matched_listing['url']}"
- 
-            # Standard house rules
+            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
                 "• Check-out: 12:00 PM",
@@ -152,54 +158,38 @@ def generate_response(user_message, sender_id=None, history=None):
                 "• Parties: Not allowed",
                 "• Smoking: Not allowed"
             ])
- 
-            suggestions = listing_text + f"\n\n📋 **House Rules:**\n{rules_text}"
+            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
         else:
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
- 
- 
-    # Optional: Add area links (static Airbnb-style)
-    links = {
-        "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-        "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-        "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    }
-    custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
- 
-    # Compose message
+
     chat_history = ""
     if history:
-        for turn in history[-6:]:  # use only the last few turns
-            role = turn["role"]
-            content = turn["content"]
-            chat_history += f"{role.upper()}: {content}\n"
- 
-    system_message = f"""{get_prompt()}
- 
+        for turn in history[-6:]:
+            chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
+
+    system_message = f"""{get_prompt(payment_url)}
     Previous conversation:
     {chat_history}
- 
+
     Knowledge base:
     {kb_context}
- 
-    {custom_links}
+
     {suggestions}
     """
-   
+
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
+            {"rrh": "user", "content": user_message}
         ],
         max_tokens=1000,
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
- 
- 
+
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
     msg = EmailMessage()
@@ -211,7 +201,7 @@ def send_email(to_email, subject, body):
         smtp.starttls()
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
- 
+
 async def check_email_loop():
     while True:
         try:
@@ -225,45 +215,44 @@ async def check_email_loop():
                 from_email = email.utils.parseaddr(msg["From"])[1]
                 subject = msg["Subject"]
                 body = ""
- 
+
                 if msg.is_multipart():
                     for part in msg.walk():
                         if part.get_content_type() == "text/plain":
                             body = part.get_payload(decode=True).decode()
                 else:
-                    body = msg.get_payload(decode=True).decode()
- 
+                    body = msg.get_payload(decode=True).decode麻
+
                 print(f"📩 Email from {from_email}: {subject}")
- 
-                # 🔁 Load chat history
+
                 history = load_email_history(from_email)
                 history.append({"role": "user", "content": body})
- 
-                # 🧠 Generate reply with memory
-                reply = generate_response(body, from_email, history)
- 
-                # ✅ Save new response to history
+
+                # Extract user data from email body (simplified example)
+                user_data = {
+                    "email": from_email,
+                    "userName": from_email.split("@")[0],
+                    "roomType": "standard",
+                    "numberOfGuests": 2
+                }
+                reply = generate_response(body, from_email, history, user_data)
+
                 history.append({"role": "assistant", "content": reply})
                 save_email_history(from_email, history)
- 
-                # Send email back
+
                 send_email(from_email, subject, reply)
                 print("✅ Email replied.")
             mail.logout()
         except Exception as e:
             print("❌ Email error:", e)
         await asyncio.sleep(5)
- 
+
 # ================== TELEGRAM ==================
- 
- 
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
- 
- 
+
 def is_valid_email(email_str: str) -> bool:
     return re.match(r"[^@]+@[^@]+\.[^@]+", email_str) is not None
- 
- 
+
 def save_user_email_mapping(user_id: str, email_address: str):
     mapping_path = "user_mapping.json"
     try:
@@ -274,117 +263,91 @@ def save_user_email_mapping(user_id: str, email_address: str):
     mapping[user_id] = email_address
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
- 
- 
-def save_payment_url(user_id: str, payment_url: str):
-    path = "payment_urls.json"
-    try:
-        with open(path, "r") as f:
-            urls = json.load(f)
-    except FileNotFoundError:
-        urls = {}
-    urls[user_id] = payment_url
-    with open(path, "w") as f:
-        json.dump(urls, f, indent=2)
- 
- 
-async def send_email_to_api(user_id: str, email: str):
-    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-    payload = {
-        "userName": "tonaja Mohamed",
-        "email": email,
-        "roomType": "test",
-        "checkIn": "2025-07-17T12:39:40.090Z",
-        "checkOut": "2025-07-17T12:39:40.091Z",
-        "numberOfGuests": 3,
-        "amountInCents": 7000,
-        "successfulURL": "http://localhost:3000/thanks",
-        "cancelURL": "http://localhost:3000/cancel"
-    }
-    async with httpx.AsyncClient() as client:
-      response = await client.post(url, json=payload)
-    
 
-    if response.status_code == 200:
-        result = await response.json()  # ✅ FIXED: use await here
-        return result.get('sessionURL')
-    else:
-        failed = 'failed to send'
-        return failed 
-
- 
- 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     context.chat_data["chat_history"] = {}
     context.chat_data["user_email"] = {}
+    context.chat_data["user_data"] = {}
+
     await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
- 
- 
+
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
- 
+
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
     if user_id not in context.chat_data["chat_history"]:
         context.chat_data["chat_history"][user_id] = []
- 
+
     if "user_email" not in context.chat_data:
         context.chat_data["user_email"] = {}
- 
+    if "user_data" not in context.chat_data:
+        context.chat_data["user_data"] = {}
+
     if user_id not in context.chat_data["user_email"]:
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            try:
-                payment_url = await send_email_to_api(user_id, user_message)
-                if payment_url:
-                    save_payment_url(user_id, payment_url)
-                    await update.message.reply_text(f"✅ Email saved.\n💳 Your payment link: {payment_url}")
-                else:
-                    await update.message.reply_text("⚠️ Email saved but no payment link received.")
-            except Exception as e:
-                logging.error(f"Failed to get/store payment URL: {e}")
-                await update.message.reply_text("❌ Email saved but payment URL could not be generated.")
-            return
+            context.chat_data["user_data"][user_id] = {
+                "email": user_message,
+                "userName": user_message.split("@")[0],
+                "roomType": "standard",
+                "numberOfGuests": 2
+            }
+            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo? (e.g., 'I want to book a room for 3 guests from 2025-07-20 to 2025-07-25')")
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
-            return
- 
+        return
+
+    # Parse user message for booking details
+    user_data = context.chat_data["user_data"][user_id]
+    if "book" in user_message.lower() or "reserve" in user_message.lower():
+        # Extract dates and number of guests from message (simplified regex for example)
+        date_pattern = r"(\d{4}-\d{2}-\d{2})"
+        guest_pattern = r"(\d+)\s*(guest|guests)"
+        dates = re.findall(date_pattern, user_message)
+        guests = re.search(guest_pattern, user_message)
+
+        if dates and len(dates) >= 2:
+            user_data["checkIn"] = dates[0] + "T12:00:00.000Z"
+            user_data["checkOut"] = dates[1] + "T12:00:00.000Z"
+        if guests:
+            user_data["numberOfGuests"] = int(guests.group(1))
+
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
- 
+
     try:
-        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
+        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id], user_data)
         await update.message.reply_text(reply)
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
- 
- 
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
- 
+
 # ================== FASTAPI ==================
 fastapi_app = FastAPI()
- 
+
 @fastapi_app.on_event("startup")
 async def start_all():
     print("📧 Email listener running...")
     asyncio.create_task(check_email_loop())
- 
+
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
     asyncio.create_task(app.updater.start_polling())
- 
+
 @fastapi_app.on_event("shutdown")
 async def shutdown_all():
     print("⛔ Shutting down bot...")
     await app.stop()
- 
+
 fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -392,8 +355,7 @@ fastapi_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
- 
