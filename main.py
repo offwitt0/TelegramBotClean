@@ -23,7 +23,6 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
-import httpx
 
 # Payment
 def Payment():
@@ -188,15 +187,14 @@ def generate_response(user_message, sender_id=None, history=None):
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
     system_message = f"""{get_prompt(payment_url)}
+    Previous conversation:
+    {chat_history}
 
-Previous conversation:
-{chat_history}
+    Knowledge base:
+    {kb_context}
 
-Knowledge base:
-{kb_context}
-
-{suggestions}
-"""
+    {suggestions}
+    """
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -302,15 +300,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            try:
-                await send_email_to_api(user_id, user_message)
-            except Exception as e:
-                logging.error(f"Failed to send email to API: {e}")
-            try:
-                await send_email_to_api(user_id, user_message)
-            except Exception as e:
-                logging.error(f"Failed to send email to API: {e}")
-            await update.message.reply_text(F"✅ Email saved. When are you planning to travel to Cairo? ")
+            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
@@ -326,17 +316,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
 
-async def send_email_to_api(user_id: str, email: str):
-    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"  
-    payload = {
-        "email": email,
-        "amountInCents": 500,
-        "successfulURL": "http://localhost:3000/thanks",
-        "cancelURL": "http://localhost:3000/cancel"
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 
