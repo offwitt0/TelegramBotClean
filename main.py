@@ -154,23 +154,47 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    # Extract name from email as a fallback
-    user_name = sender_id.split("@")[0].replace(".", " ").title() if sender_id and "@" in sender_id else "Guest"
-    email_address = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+    # 🔍 Determine guest info
+    if sender_id and "@" in sender_id:
+        user_email = sender_id
+        user_name = sender_id.split("@")[0].replace(".", " ").title()
+    else:
+        user_email = get_user_email_from_mapping(sender_id) or "guest@example.com"
+        user_name = user_email.split("@")[0].replace(".", " ").title()
+
     payment_url = None
     matched_listing = None
-    if booking_intent_detected:
-        for l in listings_data:
-            if l["name"].lower() in user_message.lower():
-                matched_listing = l
-                break
 
-        if matched_listing:
-            room_type = matched_listing["name"]
-            amount_cents = matched_listing.get("price", 7000) * 100  # assuming 'price' is in EGP
-            checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
-            checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
-            payment_url = Payment(user_name, email_address, room_type, checkin_iso, checkout_iso, 2, amount_cents)
+    if listings:
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+
+    if booking_intent_detected and matched_listing:
+        room_type = matched_listing["name"]
+        amount_egp = matched_listing.get("price", 700)
+        checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
+        checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
+
+        print("🔁 Sending payment request with data:")
+        print({
+            "userName": user_name,
+            "email": user_email,
+            "roomType": room_type,
+            "checkIn": checkin_iso,
+            "checkOut": checkout_iso,
+            "numberOfGuests": 2,
+            "amountInEGP": amount_egp
+        })
+
+        payment_url = Payment(
+            user_name,
+            user_email,
+            room_type,
+            checkin_iso,
+            checkout_iso,
+            2,
+            amount_egp
+        )
+
 
     suggestions = ""
     if listings:
@@ -295,6 +319,14 @@ def save_user_email_mapping(user_id: str, email_address: str):
     mapping[user_id] = email_address
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
+
+def get_user_email_from_mapping(user_id: str) -> str:
+    try:
+        with open("user_mapping.json", "r") as f:
+            mapping = json.load(f)
+        return mapping.get(user_id)
+    except FileNotFoundError:
+        return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
