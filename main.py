@@ -24,7 +24,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import logging
- 
+   
+# try to reconnect   
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
