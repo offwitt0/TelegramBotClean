@@ -360,7 +360,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
             try:
-                payment_url = send_email_to_api(user_id, user_message)
+                payment_url = await send_email_to_api(user_id, user_message)
                 if payment_url:
                     save_payment_url(user_id, payment_url)
                     await update.message.reply_text(f"✅ Email saved.\n💳 Your payment link: {payment_url}")
