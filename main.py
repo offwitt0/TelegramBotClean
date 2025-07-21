@@ -25,17 +25,17 @@ import requests
 import string
 
 # Payment
-def Payment():
+def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amount_egp):
     # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
-        "userName": "tonaja Mohamed",
-        "email": "tonaja.mohamed@gmail.com",
-        "roomType": "test",
-        "checkIn": "2025-07-17T12:39:40.090Z",
-        "checkOut": "2025-07-17T12:39:40.091Z",
-        "numberOfGuests": 3,
-        "amountInCents": 7000,
+        "userName": "user_name",
+        "email": "email",
+        "roomType": "room_type",
+        "checkIn": "checkin",
+        "checkOut": "checkout",
+        "numberOfGuests": number_of_guests,
+        "amountInEGP": amount_egp,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
@@ -44,9 +44,10 @@ def Payment():
         if response.status_code == 200:
             return response.json().get("sessionURL")
         else:
+            logging.error(f"Payment error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        logging.error("Payment error: %s", e)
+        logging.error("Payment exception: %s", e)
         return None
 
 # ================== ENV & CONFIG ==================
@@ -95,7 +96,7 @@ vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangero
 #         f"&children={children}&infants={infants}&pets={pets}"
 #     )
 
-def get_prompt(payment_url=None):
+def get_prompt(payment_url = None):
     base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
@@ -153,7 +154,18 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    payment_url = Payment() if booking_intent_detected else None
+    # Extract name from email as a fallback
+    user_name = sender_id.split("@")[0].replace(".", " ").title() if sender_id and "@" in sender_id else "Guest"
+    email_address = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+
+    if booking_intent_detected:
+        room_type = "Deluxe Room"
+        amount_cents = 7000
+        checkin_iso = checkin.isoformat() + "T12:00:00.000Z"
+        checkout_iso = checkout.isoformat() + "T12:00:00.000Z"
+        payment_url = Payment(user_name, email_address, room_type, checkin_iso, checkout_iso, 2, amount_cents)
+    else:
+        payment_url = None
 
     suggestions = ""
     if listings:
