@@ -23,18 +23,20 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
+import httpx
 
 # Payment
-def Payment(user_name, email, room_type, check_in, check_out, number_of_guests, amount_in_egp):
+def Payment():
+    # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
-        "userName": user_name,
-        "email": email,
-        "roomType": room_type,
-        "checkIn": check_in,
-        "checkOut": check_out,
-        "numberOfGuests": number_of_guests,
-        "amountInEGP": amount_in_egp,
+        "userName": "tonaja Mohamed",
+        "email": "tonaja.mohamed@gmail.com",
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
@@ -148,31 +150,13 @@ def generate_response(user_message, sender_id=None, history=None):
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    # Get user email from history or context
-    user_email = None
-    if history:
-        for entry in history:
-            if entry['role'] == 'user':
-                user_email = context.chat_data['user_email'].get(sender_id)
-
+    listings = find_matching_listings(user_message, guests=2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    payment_url = None
-    if booking_intent_detected and user_email:
-        payment_url = Payment(
-            user_name="tonaja Mohamed",  # Replace this with dynamic user name if available
-            email=user_email,
-            room_type="test",  # Replace with actual room type if necessary
-            check_in=checkin.isoformat(),
-            check_out=checkout.isoformat(),
-            number_of_guests=3,  # Set dynamically based on user input
-            amount_in_cents=7000  # Adjust based on your pricing logic
-        )
+    payment_url = Payment() if booking_intent_detected else None
 
     suggestions = ""
-    listings = find_matching_listings(user_message, guests=3)  # Adjust guests as needed
-
     if listings:
         matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
@@ -191,20 +175,28 @@ def generate_response(user_message, sender_id=None, history=None):
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
+    # links = {
+    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
+    # }
+    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
+
     chat_history = ""
     if history:
         for turn in history[-6:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
     system_message = f"""{get_prompt(payment_url)}
-    Previous conversation:
-    {chat_history}
 
-    Knowledge base:
-    {kb_context}
+Previous conversation:
+{chat_history}
 
-    {suggestions}
-    """
+Knowledge base:
+{kb_context}
+
+{suggestions}
+"""
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -293,7 +285,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["chat_history"] = {}
     context.chat_data["user_email"] = {}
 
-    await update.message.reply_text("Welcome! Please enter your email to get started.")
+    await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
@@ -310,7 +302,15 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+            try:
+                await send_email_to_api(user_id, user_message)
+            except Exception as e:
+                logging.error(f"Failed to send email to API: {e}")
+            try:
+                await send_email_to_api(user_id, user_message)
+            except Exception as e:
+                logging.error(f"Failed to send email to API: {e}")
+            await update.message.reply_text(F"✅ Email saved. When are you planning to travel to Cairo? ")
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
@@ -326,6 +326,17 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
 
+async def send_email_to_api(user_id: str, email: str):
+    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"  
+    payload = {
+        "email": email,
+        "amountInCents": 500,
+        "successfulURL": "http://localhost:3000/thanks",
+        "cancelURL": "http://localhost:3000/cancel"
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload)
+        response.raise_for_status()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 
