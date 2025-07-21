@@ -21,12 +21,6 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
-import httpx
-
-import logging
-   
-# try to reconnect   
-
 import requests
 import string
 
@@ -55,7 +49,6 @@ def Payment(user_name: str, email: str, room_type: str, checkin: str, checkout: 
     except Exception as e:
         logging.error("Payment error: %s", e)
         return None
-
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -162,52 +155,47 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
     user_email = sender_id if "@" in str(sender_id) else "guest@example.com"
-    guest_count = 2  # Default
-    room_type = "Standard"  # Default or inferred from matched listing
-    amount = 700  # Default amount in EGP
-
     checkin_str = checkin.isoformat()
     checkout_str = checkout.isoformat()
 
-    if booking_intent_detected:
-        payment_url = Payment(
-            user_name="Guest",
-            email=user_email,
-            room_type=room_type,
-            checkin=checkin_str,
-            checkout=checkout_str,
-            number_of_guests=guest_count,
-            amount_egp=amount
-        )
-    else:
-        payment_url = None
+    payment_url = None
+    room_type = "Standard"
+    guest_count = 2
+    amount = 700
+    matched_listing = None
 
-
-    suggestions = ""
     if listings:
         matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
+        if matched_listing:
+            room_type = matched_listing.get("name", "Standard")
+            guest_count = matched_listing.get("guests", 2)
+            amount = matched_listing.get("price", 700)
 
-        if booking_intent_detected and matched_listing:
-            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
-            rules_text = "\n".join([
-                "• Check-in: 3:00 PM",
-                "• Check-out: 12:00 PM",
-                "• Pets: Not allowed",
-                "• Parties: Not allowed",
-                "• Smoking: Not allowed"
-            ])
-            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
-        else:
-            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+            if booking_intent_detected:
+                payment_url = Payment(
+                    user_name="Guest",
+                    email=user_email,
+                    room_type=room_type,
+                    checkin=checkin_str,
+                    checkout=checkout_str,
+                    number_of_guests=guest_count,
+                    amount_egp=amount
+                )
+
+    if matched_listing and booking_intent_detected:
+        listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+        rules_text = "\n".join([
+            "• Check-in: 3:00 PM",
+            "• Check-out: 12:00 PM",
+            "• Pets: Not allowed",
+            "• Parties: Not allowed",
+            "• Smoking: Not allowed"
+        ])
+        suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
+    elif listings:
+        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
-
-    # links = {
-    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    # }
-    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     chat_history = ""
     if history:
@@ -306,44 +294,6 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
- 
- 
-def save_payment_url(user_id: str, payment_url: str):
-    path = "payment_urls.json"
-    try:
-        with open(path, "r") as f:
-            urls = json.load(f)
-    except FileNotFoundError:
-        urls = {}
-    urls[user_id] = payment_url
-    with open(path, "w") as f:
-        json.dump(urls, f, indent=2)
- 
- 
-async def send_email_to_api(user_id: str, email: str):
-    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
-    payload = {
-        "userName": "tonaja Mohamed",
-        "email": email,
-        "roomType": "test",
-        "checkIn": "2025-07-17T12:39:40.090Z",
-        "checkOut": "2025-07-17T12:39:40.091Z",
-        "numberOfGuests": 3,
-        "amountInCents": 7000,
-        "successfulURL": "http://localhost:3000/thanks",
-        "cancelURL": "http://localhost:3000/cancel"
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation",
-            json=payload
-        )
-        result = response.json()  # ✅ Do NOT use `await`
-        return result
-
- 
- 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     context.chat_data["chat_history"] = {}
@@ -414,5 +364,3 @@ fastapi_app.add_middleware(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
-    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
-
