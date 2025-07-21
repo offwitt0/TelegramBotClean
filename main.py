@@ -325,11 +325,15 @@ async def send_email_to_api(user_id: str, email: str):
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-        data = await response.json()
-        return data.get("sessionURL")
+    response = requests.post(url, json=data)
+    if response.status_code == 200:
+        result = response.json()
+        PaymentUrl = result['sessionURL']
+        return PaymentUrl
+    else:
+        failed = 'failed to send'
+        return failed 
+
  
  
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
