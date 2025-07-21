@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from openai import OpenAI
+<<<<<<< HEAD
 import requests
 import string
 
@@ -48,6 +49,9 @@ def Payment(user_data):
     except Exception as e:
         logging.error("Payment error: %s", e)
         return None
+=======
+import logging 
+>>>>>>> 5decdd7 (try again103)
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -263,7 +267,47 @@ def save_user_email_mapping(user_id: str, email_address: str):
     mapping[user_id] = email_address
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
+<<<<<<< HEAD
 
+=======
+ 
+ 
+def save_payment_url(user_id: str, payment_url: str):
+    path = "payment_urls.json"
+    try:
+        with open(path, "r") as f:
+            urls = json.load(f)
+    except FileNotFoundError:
+        urls = {}
+    urls[user_id] = payment_url
+    with open(path, "w") as f:
+        json.dump(urls, f, indent=2)
+ 
+ 
+async def send_email_to_api(user_id: str, email: str):
+    url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
+    payload = {
+        "userName": "tonaja Mohamed",
+        "email": email,
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
+        "successfulURL": "http://localhost:3000/thanks",
+        "cancelURL": "http://localhost:3000/cancel"
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation",
+            json=payload
+        )
+        result = response.json()  # ✅ Do NOT use `await`
+        return result
+
+ 
+ 
+>>>>>>> 5decdd7 (try again103)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     context.chat_data["chat_history"] = {}
@@ -358,4 +402,11 @@ fastapi_app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
+<<<<<<< HEAD
     uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
+=======
+    uvicorn.run("main:fastapi_app", host="0.0.0.0", port=8000)
+    asyncio.run(send_email_to_api("123", "test@example.com"))
+
+ 
+>>>>>>> 5decdd7 (try again103)
