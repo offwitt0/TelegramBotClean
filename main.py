@@ -25,28 +25,40 @@ import requests
 import string
 
 # Payment
-def Payment():
-    # API endpoint
+def Payment(user_data=None):
+    if user_data is None:
+        user_data = {
+            "userName": "Guest User",
+            "email": "guest@example.com",
+            "roomType": "Standard",
+            "checkIn": (datetime.now() + timedelta(days=3)).isoformat(),
+            "checkOut": (datetime.now() + timedelta(days=6)).isoformat(),
+            "numberOfGuests": 2,
+            "amountInEGP": 7000
+        }
+    
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
-        "userName": "tonaja Mohamed",
-        "email": "tonaja.mohamed@gmail.com",
-        "roomType": "test",
-        "checkIn": "2025-07-17T12:39:40.090Z",
-        "checkOut": "2025-07-17T12:39:40.091Z",
-        "numberOfGuests": 3,
-        "amountInCents": 7000,
+        "userName": user_data.get("userName"),
+        "email": user_data.get("email"),
+        "roomType": user_data.get("roomType", "Standard"),
+        "checkIn": user_data.get("checkIn"),
+        "checkOut": user_data.get("checkOut"),
+        "numberOfGuests": user_data.get("numberOfGuests", 2),
+        "amountInEGP": user_data.get("amountInEGP", 7000),
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
+    
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
             return response.json().get("sessionURL")
         else:
+            logging.error(f"Payment API error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        logging.error("Payment error: %s", e)
+        logging.error(f"Payment error: {e}")
         return None
 
 # ================== ENV & CONFIG ==================
@@ -141,60 +153,63 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def generate_response(user_message, sender_id=None, history=None):
+def generate_response(user_message, sender_id=None, history=None, user_data=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
 
+    # Knowledge base lookup
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
+    # Listing matching
     listings = find_matching_listings(user_message, guests=2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
+    # Payment URL generation (keeping your exact technique)
     payment_url = Payment() if booking_intent_detected else None
 
+    # Response suggestions
     suggestions = ""
     if listings:
         matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
         if booking_intent_detected and matched_listing:
+            # Your original message format with the payment link
             listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+            
+            # Enhanced rules with dynamic user data if available
             rules_text = "\n".join([
-                "• Check-in: 3:00 PM",
-                "• Check-out: 12:00 PM",
+                f"• Check-in: 3:00 PM on {(user_data.get('checkIn') or checkin) if user_data else checkin}",
+                f"• Check-out: 12:00 PM on {(user_data.get('checkOut') or checkout) if user_data else checkout}",
+                f"• Guests: {user_data.get('numberOfGuests', 2) if user_data else 2}",
                 "• Pets: Not allowed",
                 "• Parties: Not allowed",
                 "• Smoking: Not allowed"
             ])
-            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
+            
+            suggestions = listing_text + f"📋 Booking Details:\n{rules_text}"
         else:
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-    # links = {
-    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    # }
-    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
-
+    # Chat history context
     chat_history = ""
     if history:
         for turn in history[-6:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
     system_message = f"""{get_prompt(payment_url)}
-    Previous conversation:
-    {chat_history}
+Previous conversation:
+{chat_history}
 
-    Knowledge base:
-    {kb_context}
+Knowledge base:
+{kb_context}
 
-    {suggestions}
-    """
+{suggestions}
+"""
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -246,8 +261,19 @@ async def check_email_loop():
                 history = load_email_history(from_email)
                 history.append({"role": "user", "content": body})
 
-                # 🧠 Generate reply with memory
-                reply = generate_response(body, from_email, history)
+                # 🧠 Prepare user data for payment
+                user_data = {
+                    "userName": from_email.split("@")[0],  # Use email prefix as name
+                    "email": from_email,
+                    "roomType": "Standard",  # Default, can parse from subject/body later
+                    "checkIn": (datetime.now() + timedelta(days=3)).isoformat(),
+                    "checkOut": (datetime.now() + timedelta(days=6)).isoformat(),
+                    "numberOfGuests": 2,  # Could parse from email body
+                    "amountInEGP": 7000   # Default, can be adjusted based on content
+                }
+                
+                # Generate reply with user data
+                reply = generate_response(body, from_email, history, user_data)
 
                 # ✅ Save new response to history
                 history.append({"role": "assistant", "content": reply})
