@@ -25,40 +25,28 @@ import requests
 import string
 
 # Payment
-def Payment(user_data=None):
-    if user_data is None:
-        user_data = {
-            "userName": "Guest User",
-            "email": "guest@example.com",
-            "roomType": "Standard",
-            "checkIn": (datetime.now() + timedelta(days=3)).isoformat(),
-            "checkOut": (datetime.now() + timedelta(days=6)).isoformat(),
-            "numberOfGuests": 2,
-            "amountInEGP": 7000
-        }
-    
+def Payment():
+    # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
-        "userName": user_data.get("userName"),
-        "email": user_data.get("email"),
-        "roomType": user_data.get("roomType", "Standard"),
-        "checkIn": user_data.get("checkIn"),
-        "checkOut": user_data.get("checkOut"),
-        "numberOfGuests": user_data.get("numberOfGuests", 2),
-        "amountInEGP": user_data.get("amountInEGP", 7000),
+        "userName": "tonaja Mohamed",
+        "email": "tonaja.mohamed@gmail.com",
+        "roomType": "test",
+        "checkIn": "2025-07-17T12:39:40.090Z",
+        "checkOut": "2025-07-17T12:39:40.091Z",
+        "numberOfGuests": 3,
+        "amountInCents": 7000,
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
-    
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
             return response.json().get("sessionURL")
         else:
-            logging.error(f"Payment API error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        logging.error(f"Payment error: {e}")
+        logging.error("Payment error: %s", e)
         return None
 
 # ================== ENV & CONFIG ==================
@@ -153,129 +141,71 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def generate_response(user_message, sender_id=None, history=None, user_data=None):
+def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
 
-    # Get relevant knowledge base context
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    # Find matching listings (default to 2 guests)
     listings = find_matching_listings(user_message, guests=2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    # Initialize variables
-    matched_listing = None
-    payment_url = None
+    payment_url = Payment() if booking_intent_detected else None
+
     suggestions = ""
-
-    # Only try to get matched_listing if we have listings
     if listings:
-        matched_listing = next((l for l in listings_data if any(l["name"] in listing for listing in listings)), None)
+        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
 
-    # Payment processing
-    if booking_intent_detected and matched_listing:
-        # Use provided user_data if available, otherwise try to collect from context
-        if not user_data:
-            user_email = None
-            user_name = "Guest"
-            
-            # Get email from Telegram context if available
-            if isinstance(sender_id, str):  # Telegram user ID
-                try:
-                    with open("user_mapping.json", "r") as f:
-                        user_mapping = json.load(f)
-                        user_email = user_mapping.get(sender_id)
-                except (FileNotFoundError, json.JSONDecodeError):
-                    pass
-            
-            # Extract name from chat history if possible
-            if history:
-                for msg in reversed(history):
-                    if msg["role"] == "user":
-                        content_lower = msg["content"].lower()
-                        if "my name is" in content_lower:
-                            user_name = msg["content"].split("my name is")[-1].strip().split()[0]
-                        elif "i'm" in content_lower:
-                            user_name = msg["content"].split("i'm")[-1].strip().split()[0]
-                        break
-            
-            # Parse number of guests from message if mentioned
-            guests = 2  # default
-            guest_matches = re.search(r"(\d+)\s+(?:guest|people|person|adults?)", user_message.lower())
-            if guest_matches:
-                guests = int(guest_matches.group(1))
-
-            user_data = {
-                "userName": user_name,
-                "email": user_email or "no-email@example.com",
-                "roomType": matched_listing.get("type", "Standard"),
-                "checkIn": checkin.isoformat(),
-                "checkOut": checkout.isoformat(),
-                "numberOfGuests": guests,
-                "amountInEGP": matched_listing.get("price", 7000)
-            }
-        
-        payment_url = Payment(user_data)
-
-    # Prepare response suggestions
-    if listings:
-        if booking_intent_detected and matched_listing and payment_url:
-            listing_text = f"""Great to hear that you're ready to proceed with the booking!
-To finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment:
-{payment_url}
-
-📌 Booking Details:
-• Check-in: {checkin.strftime('%Y-%m-%d')} at 3:00 PM
-• Check-out: {checkout.strftime('%Y-%m-%d')} at 12:00 PM
-• Guests: {user_data.get('numberOfGuests', 2) if user_data else 2}
-• Total: EGP {user_data.get('amountInEGP', 7000) if user_data else 7000}
-
-📋 House Rules:
-• Pets: Not allowed
-• Parties: Not allowed
-• Smoking: Not allowed
-"""
-            suggestions = listing_text
+        if booking_intent_detected and matched_listing:
+            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+            rules_text = "\n".join([
+                "• Check-in: 3:00 PM",
+                "• Check-out: 12:00 PM",
+                "• Pets: Not allowed",
+                "• Parties: Not allowed",
+                "• Smoking: Not allowed"
+            ])
+            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
         else:
-            suggestions = "Here are some great options for you:\n" + "\n".join(listings)
+            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
-        suggestions = "I couldn't find matching listings. Please try a different area or adjust your criteria."
+        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
-    # Prepare chat history context
+    # links = {
+    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
+    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
+    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
+    # }
+    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
+
     chat_history = ""
     if history:
-        for turn in history[-6:]:  # Last 6 messages for context
+        for turn in history[-6:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
 
     system_message = f"""{get_prompt(payment_url)}
-Previous conversation:
-{chat_history}
+    Previous conversation:
+    {chat_history}
 
-Knowledge base:
-{kb_context}
+    Knowledge base:
+    {kb_context}
 
-Current suggestions:
-{suggestions}
-"""
+    {suggestions}
+    """
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logging.error(f"OpenAI API error: {e}")
-        return "I'm having trouble processing your request. Please try again later."
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ],
+        max_tokens=1000,
+        temperature=0.7
+    )
+    return response.choices[0].message.content.strip()
 
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
@@ -316,19 +246,8 @@ async def check_email_loop():
                 history = load_email_history(from_email)
                 history.append({"role": "user", "content": body})
 
-                # 🧠 Prepare user data for payment
-                user_data = {
-                    "userName": from_email.split("@")[0],  # Use email prefix as name
-                    "email": from_email,
-                    "roomType": "Standard",  # Default, can parse from subject/body later
-                    "checkIn": (datetime.now() + timedelta(days=3)).isoformat(),
-                    "checkOut": (datetime.now() + timedelta(days=6)).isoformat(),
-                    "numberOfGuests": 2,  # Could parse from email body
-                    "amountInEGP": 7000   # Default, can be adjusted based on content
-                }
-                
-                # Generate reply with user data
-                reply = generate_response(body, from_email, history, user_data)
+                # 🧠 Generate reply with memory
+                reply = generate_response(body, from_email, history)
 
                 # ✅ Save new response to history
                 history.append({"role": "assistant", "content": reply})
