@@ -25,8 +25,7 @@ import requests
 import string
 
 # Payment
-def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amount_egp):
-    # API endpoint
+def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
         "userName": user_name,
@@ -35,18 +34,26 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         "checkIn": checkin.isoformat(),
         "checkOut": checkout.isoformat(),
         "numberOfGuests": number_of_guests,
-        "amountInEGP": int(amount_egp),
+        "amountInCents": int(amountInCents),
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
+
+    print("🔍 Payload to API:", data)
     try:
         response = requests.post(url, json=data)
+        print("📨 Status Code:", response.status_code)
+        print("📨 Response Text:", response.text)
+
         if response.status_code == 200:
-            return response.json().get("sessionURL")
+            session_url = response.json().get("sessionURL")
+            print("✅ Stripe Session URL:", session_url)
+            return session_url
         else:
             return None
     except Exception as e:
         logging.error("Payment error: %s", e)
+        print("❌ Exception occurred:", e)
         return None
 
 # ================== ENV & CONFIG ==================
@@ -153,42 +160,35 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None) if listings else None
+    matched_listing = next((l for l in listings_data if listings and l["name"] in listings[0]), None)
+    user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
-    # ✅ Create payment_url *before* using it
     payment_url = None
-    if booking_intent_detected and matched_listing:
-        raw_price = matched_listing.get("price", 100)
-        try:
-            amount_egp = int(float(raw_price))  # Convert from string/float to int
-        except Exception as e:
-            logging.warning(f"Invalid price: {raw_price} — using 100 EGP instead.")
-            amount_egp = 100
+    suggestions = ""
 
+    if booking_intent_detected and matched_listing:
+        amount = matched_listing.get("price", 7000)
         payment_url = Payment(
             user_name="Guest",
-            email="guest@example.com",
+            email=user_email,
             room_type=matched_listing["name"],
             checkin=checkin,
             checkout=checkout,
             number_of_guests=2,
-            amount_egp=amount_egp
+            amountInCents=int(amount)
         )
+        listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
+        rules_text = "\n".join([
+            "• Check-in: 3:00 PM",
+            "• Check-out: 12:00 PM",
+            "• Pets: Not allowed",
+            "• Parties: Not allowed",
+            "• Smoking: Not allowed"
+        ])
+        suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
 
-    suggestions = ""
-    if listings:
-        if booking_intent_detected and matched_listing and payment_url:
-            listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
-            rules_text = "\n".join([
-                "• Check-in: 3:00 PM",
-                "• Check-out: 12:00 PM",
-                "• Pets: Not allowed",
-                "• Parties: Not allowed",
-                "• Smoking: Not allowed"
-            ])
-            suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
-        else:
-            suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+    elif listings:
+        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
