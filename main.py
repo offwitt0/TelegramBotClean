@@ -158,7 +158,13 @@ def generate_response(user_message, sender_id=None, history=None):
     # ✅ Create payment_url *before* using it
     payment_url = None
     if booking_intent_detected and matched_listing:
-        amount_egp = matched_listing.get("price", 100)
+        raw_price = matched_listing.get("price", 100)
+        try:
+            amount_egp = int(float(raw_price))  # Convert from string/float to int
+        except Exception as e:
+            logging.warning(f"Invalid price: {raw_price} — using 100 EGP instead.")
+            amount_egp = 100
+
         payment_url = Payment(
             user_name="Guest",
             email="guest@example.com",
