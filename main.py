@@ -25,17 +25,17 @@ import requests
 import string
 
 # Payment
-def Payment(user_name: str, email: str, room_type: str, checkin: str, checkout: str, number_of_guests: int, amount_egp: int):
+def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amount_egp):
     # API endpoint
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
     data = {
         "userName": user_name,
         "email": email,
         "roomType": room_type,
-        "checkIn": checkin,
-        "checkOut": checkout,
+        "checkIn": checkin.isoformat(),
+        "checkOut": checkout.isoformat(),
         "numberOfGuests": number_of_guests,
-        "amountInEGP": amount_egp,
+        "amountInEGP": int(amount_egp),
         "successfulURL": "http://localhost:3000/thanks",
         "cancelURL": "http://localhost:3000/cancel"
     }
@@ -141,31 +141,37 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def generate_response(user_message, sender_id = None, history = None):
+def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
 
-    relevant_docs = vectorstore.similarity_search(user_message, k = 3)
+    relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
-    listings = find_matching_listings(user_message, guests = 2)
+    listings = find_matching_listings(user_message, guests=2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    user_email = sender_id if "@" in str(sender_id) else "guest@example.com"
-    guest_count = 2  # Default
-    room_type = "Standard"  # Default or inferred from matched listing
-    amount = 700  # Default amount in EGP
+    matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None) if listings else None
 
-    checkin_str = checkin.isoformat()
-    checkout_str = checkout.isoformat()
-    payment_url = Payment(user_name="Guest",email=user_email, room_type=room_type, checkin=checkin_str, checkout=checkout_str, number_of_guests=guest_count, amount_egp=amount) if booking_intent_detected else None
+    # ✅ Create payment_url *before* using it
+    payment_url = None
+    if booking_intent_detected and matched_listing:
+        amount_egp = matched_listing.get("price", 100)
+        payment_url = Payment(
+            user_name="Guest",
+            email="guest@example.com",
+            room_type=matched_listing["name"],
+            checkin=checkin,
+            checkout=checkout,
+            number_of_guests=2,
+            amount_egp=amount_egp
+        )
+
     suggestions = ""
     if listings:
-        matched_listing = next((l for l in listings_data if l["name"] in listings[0]), None)
-
-        if booking_intent_detected and matched_listing:
+        if booking_intent_detected and matched_listing and payment_url:
             listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
             rules_text = "\n".join([
                 "• Check-in: 3:00 PM",
@@ -179,13 +185,6 @@ def generate_response(user_message, sender_id = None, history = None):
             suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
-
-    # links = {
-    #     "Zamalek": generate_airbnb_link("Zamalek", checkin, checkout),
-    #     "Maadi": generate_airbnb_link("Maadi", checkin, checkout),
-    #     "Garden City": generate_airbnb_link("Garden City", checkin, checkout),
-    # }
-    # custom_links = "\n".join([f"[Explore {k}]({v})" for k, v in links.items()])
 
     chat_history = ""
     if history:
