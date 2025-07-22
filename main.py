@@ -152,7 +152,7 @@ def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
-    Days = checkout - checkin
+    Days = (checkout - checkin).days
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
