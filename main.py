@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from urllib.parse import quote
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-
+import dateutil.parser
+import calendar
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
@@ -55,6 +56,33 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         logging.error("Payment error: %s", e)
         print("❌ Exception occurred:", e)
         return None
+
+def extract_dates_from_message(message):
+    try:
+        # Example: "from 20 to 25 Aug" or "20 to 25 Aug"
+        pattern = r'(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(\w{3,9})'
+        match = re.search(pattern, message.lower())
+        if match:
+            day1 = int(match.group(1))
+            day2 = int(match.group(2))
+            month_str = match.group(3)
+
+            # Try to convert month to number
+            try:
+                month = list(calendar.month_name).index(month_str.capitalize())
+                if month == 0:
+                    month = list(calendar.month_abbr).index(month_str.capitalize())
+            except ValueError:
+                return None, None
+
+            current_year = datetime.now().year
+            checkin = datetime(current_year, month, day1)
+            checkout = datetime(current_year, month, day2)
+            if checkin < checkout:
+                return checkin.date(), checkout.date()
+    except:
+        pass
+    return None, None
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -149,10 +177,12 @@ def find_matching_listings(query, guests=2):
         return []
 
 def generate_response(user_message, sender_id=None, history=None):
-    today = datetime.today().date()
-    checkin = today + timedelta(days=3)
-    checkout = today + timedelta(days=6)
-    Days = (checkout - checkin).days
+    checkin, checkout = extract_dates_from_message(user_message)
+    if not checkin or not checkout:
+        today = datetime.today().date()
+        checkin = today + timedelta(days=3)
+        checkout = today + timedelta(days=6)
+        Days = (checkout - checkin).days
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
