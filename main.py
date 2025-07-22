@@ -160,7 +160,10 @@ def generate_response(user_message, sender_id=None, history=None):
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
-    matched_listing = next((l for l in listings_data if listings and l["name"] in listings[0]), None)
+    matched_listing = next(
+        (l for l in listings_data if l["name"].lower() in user_message.lower()),
+        None
+    )
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     payment_url = None
@@ -175,7 +178,7 @@ def generate_response(user_message, sender_id=None, history=None):
             checkin=checkin,
             checkout=checkout,
             number_of_guests=2,
-            amountInCents=int(amount * Days)
+            amountInCents=int(amount * Days * 100)
         )
         listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
         rules_text = "\n".join([
