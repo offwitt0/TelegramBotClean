@@ -152,7 +152,7 @@ def generate_response(user_message, sender_id=None, history=None):
     today = datetime.today().date()
     checkin = today + timedelta(days=3)
     checkout = today + timedelta(days=6)
-
+    Days = checkout - checkin
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -175,7 +175,7 @@ def generate_response(user_message, sender_id=None, history=None):
             checkin=checkin,
             checkout=checkout,
             number_of_guests=2,
-            amountInCents=int(amount)
+            amountInCents=int(amount * Days)
         )
         listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
         rules_text = "\n".join([
@@ -320,7 +320,11 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        reply = generate_response(user_message, user_id, context.chat_data["chat_history"][user_id])
+        reply = generate_response(
+            user_message,
+            context.chat_data["user_email"].get(user_id, "guest@example.com"),
+            context.chat_data["chat_history"][user_id]
+        )
         await update.message.reply_text(reply)
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
