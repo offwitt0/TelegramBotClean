@@ -333,27 +333,25 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
     now = datetime.utcnow()
-    # Create last_active store if not exists
-    if "last_active" not in context.chat_data:
-        context.chat_data["last_active"] = {}
 
-    # Check inactivity
+    # Initialize chat_data dicts if not present
+    context.chat_data.setdefault("chat_history", {})
+    context.chat_data.setdefault("user_email", {})
+    context.chat_data.setdefault("last_active", {})
+
     last_active = context.chat_data["last_active"].get(user_id)
     if last_active and (now - last_active).total_seconds() > 120:
-        # Reset chat after 1 hour of inactivity
-        context.chat_data["chat_history"][user_id] = []
-        await update.message.reply_text("🕒 Your session has been reset due to inactivity. Feel free to start again!")
+        # Reset full session if 1 hour has passed
+        context.chat_data["chat_history"].pop(user_id, None)
+        context.chat_data["user_email"].pop(user_id, None)
+        context.chat_data["last_active"].pop(user_id, None)
+        await update.message.reply_text("🕒 Your session has been reset due to inactivity. Please enter your email to get started.")
+        return
 
     # Update last active time
     context.chat_data["last_active"][user_id] = now
 
-    if "chat_history" not in context.chat_data:
-        context.chat_data["chat_history"] = {}
-    if user_id not in context.chat_data["chat_history"]:
-        context.chat_data["chat_history"][user_id] = []
-
-    if "user_email" not in context.chat_data:
-        context.chat_data["user_email"] = {}
+    # Handle new users who haven't sent email yet
     if user_id not in context.chat_data["user_email"]:
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
@@ -363,13 +361,16 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
 
+    # Initialize history if needed
+    context.chat_data["chat_history"].setdefault(user_id, [])
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
         reply = generate_response(
             user_message,
-            context.chat_data["user_email"].get(user_id, "guest@example.com"),
+            context.chat_data["user_email"][user_id],
             context.chat_data["chat_history"][user_id]
         )
         await update.message.reply_text(reply)
@@ -377,6 +378,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
         logging.error(e)
+
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
