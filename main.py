@@ -208,7 +208,7 @@ def generate_response(user_message, sender_id=None, history=None):
             checkin=checkin,
             checkout=checkout,
             number_of_guests=2,
-            amountInCents=int(amount * Days * 100)
+            amountInCents=int(amount * 100)
         )
         listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
         rules_text = "\n".join([
@@ -332,6 +332,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
+    now = datetime.utcnow()
+    # Create last_active store if not exists
+    if "last_active" not in context.chat_data:
+        context.chat_data["last_active"] = {}
+
+    # Check inactivity
+    last_active = context.chat_data["last_active"].get(user_id)
+    if last_active and (now - last_active).total_seconds() > 120:
+        # Reset chat after 1 hour of inactivity
+        context.chat_data["chat_history"][user_id] = []
+        await update.message.reply_text("🕒 Your session has been reset due to inactivity. Feel free to start again!")
+
+    # Update last active time
+    context.chat_data["last_active"][user_id] = now
 
     if "chat_history" not in context.chat_data:
         context.chat_data["chat_history"] = {}
