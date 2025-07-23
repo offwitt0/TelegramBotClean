@@ -66,13 +66,19 @@ def extract_dates_from_message(message):
             print(f"🔍 Match groups: {match.groups()}")  # Debug print
             day1 = int(match.group(1))
             day2 = int(match.group(2))
-            month_str = match.group(3).capitalize()
+            month_str = match.group(3).strip().lower()
 
-            try:
-                month = list(calendar.month_name).index(month_str)
-                if month == 0:
-                    month = list(calendar.month_abbr).index(month_str)
-            except ValueError:
+            # Try matching month name or abbreviation
+            month = next(
+                (i for i, m in enumerate(calendar.month_name) if m.lower() == month_str),
+                None
+            )
+            if not month:
+                month = next(
+                    (i for i, m in enumerate(calendar.month_abbr) if m.lower() == month_str),
+                    None
+                )
+            if not month or month == 0:
                 return None, None
 
             current_year = datetime.now().year
