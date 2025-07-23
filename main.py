@@ -329,8 +329,11 @@ def save_user_email_mapping(user_id: str, email_address: str):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    context.chat_data["chat_history"] = {}
-    context.chat_data["user_email"] = {}
+
+    # Safely reset this user's data only
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+        context.chat_data.setdefault(key, {})
+        context.chat_data[key].pop(user_id, None)
 
     await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
 
@@ -361,6 +364,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.chat_data["last_active"][user_id] = now
     context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
+    
+    print(f"💬 Message from {user_id}: {user_message}")
 
     # Step 1: Ask for email
     if user_id not in context.chat_data["user_email"]:
