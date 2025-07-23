@@ -358,6 +358,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Add this at the start of handle():
+    print(f"\n=== DEBUG: Current State ===")
+    print(f"User ID: {user_id}")
+    print(f"Has Email: {user_id in context.chat_data['user_email']}")
+    print(f"Has Dates: {user_id in context.chat_data['checkin_dates']}")
+    print(f"Last Msg: {user_message[:50]}...")
     user_message = update.message.text
     user_id = str(update.effective_user.id)
     now = datetime.utcnow()
@@ -376,26 +382,29 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # STEP 1: Email collection
     if user_id not in context.chat_data["user_email"]:
-        print(f"🧪 Checking email validity for user_id {user_id}: {user_message}")
         clean_email = user_message.strip().lower()
         
-        if is_valid_email(clean_email):
-            context.chat_data["user_email"][user_id] = clean_email
-            save_user_email_mapping(user_id, clean_email)
-            
-            # Send confirmation and date request in the same message
-            reply = await update.message.reply_text(
-                "📧 Email saved successfully!\n\n"
-                "📅 Now please enter your travel dates (e.g. '20 to 23 Aug' or 'August 20-23')"
+        if not is_valid_email(clean_email):
+            await update.message.reply_text(
+                "❌ Invalid email format. Please try again.\n"
+                "Example: yourname@gmail.com"
             )
-            context.chat_data["all_messages"][user_id].append(reply.message_id)
-        else:
-            reply = await update.message.reply_text(
-                "📧 Please enter a valid email address to continue.\n"
-                "Example: yourname@example.com"
-            )
-            context.chat_data["all_messages"][user_id].append(reply.message_id)
-        return
+            return
+        
+        # Save email and confirm
+        context.chat_data["user_email"][user_id] = clean_email
+        save_user_email_mapping(user_id, clean_email)
+        
+        # Send confirmation and date request
+        await update.message.reply_text(
+            f"✓ Email {clean_email} saved!\n\n"
+            "📅 Now please provide your travel dates:\n"
+            "Examples:\n"
+            "• 20-27 September\n"
+            "• Sep 20 to 27\n"
+            "• 20/09 to 27/09"
+        )
+        return  # Exit after email handling
 
     # STEP 2: Date collection
     if user_id not in context.chat_data["checkin_dates"]:
