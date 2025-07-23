@@ -57,34 +57,32 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         print("❌ Exception occurred:", e)
         return None
 
-# def extract_dates_from_message(message):
-#     try:
-#         # Normalize message (remove punctuation, lower-case)
-#         message = message.strip().lower().replace(".", "")
-#         # Accept formats like "from 20 to 28 aug", "20 to 28 aug", etc.
-#         pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]+)"
-#         match = re.search(pattern, message)
-#         if match:
-#             day1 = int(match.group(1))
-#             day2 = int(match.group(2))
-#             month_str = match.group(3).capitalize()
+def extract_dates_from_message(message):
+    try:
+        pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]{3,9})"
+        match = re.search(pattern, message.lower())
+        if match:
+            day1 = int(match.group(1))
+            day2 = int(match.group(2))
+            month_str = match.group(3).capitalize()
 
-#             try:
-#                 month = list(calendar.month_name).index(month_str)
-#                 if month == 0:
-#                     month = list(calendar.month_abbr).index(month_str)
-#             except ValueError:
-#                 return None, None
+            try:
+                month = list(calendar.month_name).index(month_str)
+                if month == 0:
+                    month = list(calendar.month_abbr).index(month_str)
+            except ValueError:
+                return None, None
 
-#             current_year = datetime.now().year
-#             checkin = datetime(current_year, month, day1)
-#             checkout = datetime(current_year, month, day2)
+            current_year = datetime.now().year
+            checkin = datetime(current_year, month, day1)
+            checkout = datetime(current_year, month, day2)
 
-#             if checkin < checkout:
-#                 return checkin.date(), checkout.date()
-#     except Exception as e:
-#         print("❌ Date parsing error:", e)
-#     return None, None
+            if checkin < checkout:
+                return checkin.date(), checkout.date()
+    except Exception as e:
+        print("❌ Date parsing error:", e)
+    return None, None
+
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -364,9 +362,11 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Step 1: Ask for email
     if user_id not in context.chat_data["user_email"]:
-        if is_valid_email(user_message):
-            context.chat_data["user_email"][user_id] = user_message
-            save_user_email_mapping(user_id, user_message)
+        print(f"🧪 Checking email validity for user_id {user_id}: {user_message}")
+        if is_valid_email(user_message.strip()):
+            email = user_message.strip()
+            context.chat_data["user_email"][user_id] = email
+            save_user_email_mapping(user_id, email)
 
             reply1 = await update.message.reply_text("📧 Email saved successfully!")
             reply2 = await update.message.reply_text("📅 Now please enter your travel dates (e.g. from 20 to 23 Aug)")
@@ -375,7 +375,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply = await update.message.reply_text("📧 Please enter a valid email address to continue.")
             context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
-
 
     # Step 2: Use GPT to extract check-in/out dates
     if user_id not in context.chat_data["checkin_dates"]:
@@ -388,6 +387,17 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # 🧠 Try to extract dates from the GPT response using a structured prompt
+        # Fallback: try regex directly from user input
+        fallback_checkin, fallback_checkout = extract_dates_from_message(user_message)
+        if fallback_checkin and fallback_checkout:
+            context.chat_data["checkin_dates"][user_id] = {
+                "checkin": fallback_checkin,
+                "checkout": fallback_checkout
+            }
+            reply = await update.message.reply_text("✅ Got your travel dates! How can I assist you now?")
+            context.chat_data["all_messages"][user_id].append(reply.message_id)
+            return
+
         date_pattern = r"check[- ]?in[:\-]?\s*(\d{1,2} \w+ \d{4}).*?check[- ]?out[:\-]?\s*(\d{1,2} \w+ \d{4})"
         match = re.search(date_pattern, reply_text, re.IGNORECASE)
         if match:
