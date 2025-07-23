@@ -358,15 +358,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Add this at the start of handle():
+    now = datetime.utcnow()
+    user_message = update.message.text
+    user_id = str(update.effective_user.id)
     print(f"\n=== DEBUG: Current State ===")
     print(f"User ID: {user_id}")
     print(f"Has Email: {user_id in context.chat_data['user_email']}")
     print(f"Has Dates: {user_id in context.chat_data['checkin_dates']}")
     print(f"Last Msg: {user_message[:50]}...")
-    user_message = update.message.text
-    user_id = str(update.effective_user.id)
-    now = datetime.utcnow()
 
     # Initialize chat data structures
     for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
