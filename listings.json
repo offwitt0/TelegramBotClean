@@ -8,6 +8,7 @@
     "bathrooms": 1,
     "price": 700,
     "rating": 4.75,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -18,24 +19,6 @@
     "url": "https://anqakhans.holidayfuture.com/listings/310743"
   },
   {
-    "id": "fancy_pyramids_khan",
-    "name": "Fancy Pyramids' Khan: giza's Gem",
-    "city_hint": "giza",
-    "guests": 10,
-    "bedrooms": 4,
-    "bathrooms": 3,
-    "price": 600,
-    "rating": 5.0,
-    "amenities": [
-      "Kitchen",
-      "Air conditioning",
-      "Washing machine",
-      "Wireless",
-      "Pyramids view"
-    ],
-    "url": ""
-  },
-  {
     "id": "zamalek_sunny_khan",
     "name": "zamalek Sunny Khan",
     "city_hint": "zamalek",
@@ -44,6 +27,7 @@
     "bathrooms": 2,
     "price": 500,
     "rating": 5.0,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -62,6 +46,7 @@
     "bathrooms": 3,
     "price": 400,
     "rating": 5.0,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -69,7 +54,7 @@
       "Wireless",
       "Vintage Oasis"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1368813644336742742?source_impression_id=p3_1746491091_P35Uy3ubnl5rUx15"
   },
   {
     "id": "bohemian_khan",
@@ -80,6 +65,7 @@
     "bathrooms": 1,
     "rating": 5.0,
     "price": 400,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -97,6 +83,7 @@
     "bathrooms": 2,
     "price": 900,
     "rating": 4.9,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -104,7 +91,7 @@
       "Wireless",
       "Pets allowed"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1276257424753103487?source_impression_id=p3_1746491069_P3nMYyfgoKYJN0ZN"
   },
   {
     "id": "dokki_peaceful_khan",
@@ -115,6 +102,7 @@
     "bathrooms": 2,
     "rating": 5.0,
     "price": 750,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -132,6 +120,7 @@
     "bathrooms": 2,
     "rating": 5.0,
     "price": 720,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -150,6 +139,7 @@
     "bathrooms": 2,
     "price": 780,
     "rating": 4.8,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -168,6 +158,7 @@
     "bathrooms": 1,
     "rating": 4.8,
     "price": 630,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -185,6 +176,7 @@
     "bathrooms": 2,
     "rating": 4.35,
     "price": 1000,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -192,7 +184,7 @@
       "Wireless",
       "Pyramids view"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1296495908932572471?source_impression_id=p3_1746491091_P3rKqQDuxXyVQuc_"
   },
   {
     "id": "minimal_ancient_khan",
@@ -203,6 +195,7 @@
     "bathrooms": 1,
     "rating": 5.0,
     "price": 1300,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -210,7 +203,7 @@
       "Wireless",
       "Pets allowed"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1377931266580642933?source_impression_id=p3_1746491091_P339GhCRNv8TUEls"
   },
   {
     "id": "suliman_khan",
@@ -221,6 +214,7 @@
     "bathrooms": 2,
     "rating": 4.6,
     "price": 1700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -240,6 +234,7 @@
     "bathrooms": 1,
     "rating": 4.9,
     "price": 550,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -257,6 +252,7 @@
     "bathrooms": 2,
     "rating": 5.0,
     "price": 550,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -274,6 +270,7 @@
     "bathrooms": 2.5,
     "rating": 4.5,
     "price": 300,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -283,7 +280,7 @@
       "Elevator",
       "Luggage storage"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1301616499656442686?source_impression_id=p3_1746487433_P3j8HnHQiJoGxxvn"
   },
   {
     "id": "c463befb",
@@ -294,6 +291,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 350,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -302,7 +300,7 @@
       "Elevator",
       "Luggage storage"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1136034941071797168?source_impression_id=p3_1746487433_P3LZJVDLMMW8NyJX"
   },
   {
     "id": "345066dd",
@@ -313,6 +311,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 710,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -321,7 +320,7 @@
       "Elevator",
       "Luggage storage"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1330566582238971840?source_impression_id=p3_1746487433_P3F184KBjt-WKHxP"
   },
   {
     "id": "e324917e",
@@ -332,6 +331,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 200,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -340,7 +340,7 @@
       "Elevator",
       "Luggage storage"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1378452275041550391?source_impression_id=p3_1746487433_P3WnJMVy2yZ3x-sp"
   },
   {
     "id": "e36d6805",
@@ -351,6 +351,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 200,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -359,7 +360,7 @@
       "Parking available",
       "Elevator"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1276257424753103487?source_impression_id=p3_1746491069_P3nMYyfgoKYJN0ZN"
   },
   {
     "id": "02773a68",
@@ -370,6 +371,7 @@
     "bathrooms": 3.0,
     "rating": 4.5,
     "price": 200,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -377,7 +379,7 @@
       "Wireless",
       "Elevator"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1217270627709511992?source_impression_id=p3_1746491091_P3ZRNyodNgWjFgjH"
   },
   {
     "id": "d8f6fd86",
@@ -388,6 +390,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 100,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -395,7 +398,7 @@
       "Wireless",
       "Elevator"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1205923395596532074?source_impression_id=p3_1746491091_P3NEJ9cyZzi_reCj"
   },
   {
     "id": "10079db8",
@@ -406,6 +409,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 150,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -413,7 +417,7 @@
       "Wireless",
       "Elevator"
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1205832551888482479?source_impression_id=p3_1746491091_P3XdwTKEdZ2h_35r"
   },
   {
     "id": "98b42d6b",
@@ -424,6 +428,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 150,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -442,6 +447,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 180,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -460,6 +466,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 780,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -478,6 +485,7 @@
     "bathrooms": 5.0,
     "rating": 4.5,
     "price": 800,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -496,6 +504,7 @@
     "bathrooms": 1.5,
     "rating": 4.5,
     "price": 700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -514,6 +523,7 @@
     "bathrooms": 1.5,
     "rating": null,
     "price": 700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -532,6 +542,7 @@
     "bathrooms": 2,
     "rating": null,
     "price": 700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -550,9 +561,10 @@
     "bathrooms": 2,
     "rating": null,
     "price": 700,
+    "location": 0,
     "amenities": [
     ],
-    "url": ""
+    "url": "https://www.airbnb.com/rooms/1413235497286439324?source_impression_id=p3_1753267323_P39WkH_arw9A2UDL"
   },
   {
     "id": "",
@@ -563,6 +575,7 @@
     "bathrooms": 1.5,
     "rating": 4.5,
     "price": 700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -581,6 +594,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 700,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -599,6 +613,7 @@
     "bathrooms": 3.0,
     "rating": 4.5,
     "price": 740,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -617,6 +632,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 500,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -635,6 +651,7 @@
     "bathrooms": 1,
     "rating": null,
     "price": 500,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -642,7 +659,7 @@
       "Wireless",
       "Elevator"
     ],
-    "url": "http://airbnb.com/h/galleriakhan"
+    "url": "https://www.airbnb.com/rooms/1421586880686653280?source_impression_id=p3_1753267257_P3IuiULAIUbCD6KU"
   },
   {
     "id": "",
@@ -653,6 +670,7 @@
     "bathrooms": 1,
     "rating": null,
     "price": 500,
+    "location": 0,
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -670,6 +688,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 500,
+    "location": 0,
     "amenities": [
     ],
     "url": ""
@@ -683,6 +702,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 500,
+    "location": 0,
     "amenities": [
     ],
     "url": ""
@@ -696,6 +716,7 @@
     "bathrooms": null,
     "price": 540,
     "rating": null,
+    "location": 0,
     "amenities": [
     ],
     "url": ""
@@ -709,6 +730,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 540,
+    "location": 0,
     "amenities": [
     ],
     "url": ""
@@ -722,6 +744,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 540,
+    "location": 0,
     "amenities": [
     ],
     "url": ""
