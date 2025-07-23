@@ -334,17 +334,25 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     now = datetime.utcnow()
 
-    # Initialize chat_data dicts if not present
     context.chat_data.setdefault("chat_history", {})
     context.chat_data.setdefault("user_email", {})
     context.chat_data.setdefault("last_active", {})
+    context.chat_data.setdefault("bot_messages", {})
 
+    # Inactivity check
     last_active = context.chat_data["last_active"].get(user_id)
-    if last_active and (now - last_active).total_seconds() > 120:
-        # Reset full session if 1 hour has passed
+    if last_active and (now - last_active).total_seconds() > 3600:
+        for msg_id in context.chat_data["bot_messages"].get(user_id, []):
+            try:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
+            except Exception as e:
+                logging.warning(f"⚠️ Failed to delete message {msg_id}: {e}")
+
         context.chat_data["chat_history"].pop(user_id, None)
         context.chat_data["user_email"].pop(user_id, None)
         context.chat_data["last_active"].pop(user_id, None)
+        context.chat_data["bot_messages"].pop(user_id, None)
+
         await update.message.reply_text("🕒 Your session has been reset due to inactivity. Please enter your email to get started.")
         return
 
@@ -360,7 +368,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("📧 Please provide a valid email address to continue.")
         return
-
+    
     # Initialize history if needed
     context.chat_data["chat_history"].setdefault(user_id, [])
     context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
@@ -373,7 +381,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.chat_data["user_email"][user_id],
             context.chat_data["chat_history"][user_id]
         )
-        await update.message.reply_text(reply)
+        sent = await update.message.reply_text(reply)
+        context.chat_data["bot_messages"].setdefault(user_id, []).append(sent.message_id)
         context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
     except Exception as e:
         await update.message.reply_text("❌ Bot error")
