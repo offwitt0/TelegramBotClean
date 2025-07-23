@@ -341,7 +341,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Inactivity check
     last_active = context.chat_data["last_active"].get(user_id)
-    if last_active and (now - last_active).total_seconds() > 3600:
+    if last_active and (now - last_active).total_seconds() > 120:
         for msg_id in context.chat_data["bot_messages"].get(user_id, []):
             try:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
