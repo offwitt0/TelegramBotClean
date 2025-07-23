@@ -59,9 +59,11 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
 
 def extract_dates_from_message(message):
     try:
+        print(f"🔍 Parsing dates from message: {message}")  # Debug print
         pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]{3,9})"
         match = re.search(pattern, message.lower())
         if match:
+            print(f"🔍 Match groups: {match.groups()}")  # Debug print
             day1 = int(match.group(1))
             day2 = int(match.group(2))
             month_str = match.group(3).capitalize()
@@ -78,11 +80,11 @@ def extract_dates_from_message(message):
             checkout = datetime(current_year, month, day2)
 
             if checkin < checkout:
+                print(f"✅ Parsed dates: {checkin.date()} to {checkout.date()}")  # Debug print
                 return checkin.date(), checkout.date()
     except Exception as e:
         print("❌ Date parsing error:", e)
     return None, None
-
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -378,16 +380,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Step 2: Use GPT to extract check-in/out dates
     if user_id not in context.chat_data["checkin_dates"]:
-        reply_text = generate_response(
-            user_message,
-            sender_id=context.chat_data["user_email"][user_id],
-            history=context.chat_data["chat_history"].get(user_id, []),
-            checkin=None,
-            checkout=None
-        )
-
-        # 🧠 Try to extract dates from the GPT response using a structured prompt
-        # Fallback: try regex directly from user input
+        # First try to extract dates directly from user input
         fallback_checkin, fallback_checkout = extract_dates_from_message(user_message)
         if fallback_checkin and fallback_checkout:
             context.chat_data["checkin_dates"][user_id] = {
@@ -397,7 +390,17 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply = await update.message.reply_text("✅ Got your travel dates! How can I assist you now?")
             context.chat_data["all_messages"][user_id].append(reply.message_id)
             return
+        
+        # If direct extraction fails, try through GPT
+        reply_text = generate_response(
+            user_message,
+            sender_id=context.chat_data["user_email"][user_id],
+            history=context.chat_data["chat_history"].get(user_id, []),
+            checkin=None,
+            checkout=None
+        )
 
+        # Try to extract dates from GPT response
         date_pattern = r"check[- ]?in[:\-]?\s*(\d{1,2} \w+ \d{4}).*?check[- ]?out[:\-]?\s*(\d{1,2} \w+ \d{4})"
         match = re.search(date_pattern, reply_text, re.IGNORECASE)
         if match:
