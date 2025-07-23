@@ -381,9 +381,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.chat_data["user_email"][user_id] = email
             save_user_email_mapping(user_id, email)
 
-            reply1 = await update.message.reply_text("📧 Email saved successfully!")
-            reply2 = await update.message.reply_text("📅 Now please enter your travel dates (e.g. from 20 to 23 Aug)")
-            context.chat_data["all_messages"][user_id].extend([reply1.message_id, reply2.message_id])
+            reply = await update.message.reply_text(
+                "📧 Email saved successfully!\n\n📅 Now please enter your travel dates (e.g. from 20 to 23 Aug)"
+            )
+            context.chat_data["all_messages"][user_id].append(reply.message_id)
         else:
             reply = await update.message.reply_text("📧 Please enter a valid email address to continue.")
             context.chat_data["all_messages"][user_id].append(reply.message_id)
