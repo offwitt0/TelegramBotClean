@@ -333,6 +333,20 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    
+    # Clear all user-specific data
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+        if key in context.chat_data:
+            context.chat_data[key].pop(user_id, None)
+    
+    # Send confirmation message
+    await update.message.reply_text(
+        "🔄 Conversation reset successfully!\n\n"
+        "Please start over by sending your email address."
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
 
@@ -452,6 +466,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
+app.add_handler(CommandHandler("reset", reset))
 
 # ================== FASTAPI ==================
 fastapi_app = FastAPI()
