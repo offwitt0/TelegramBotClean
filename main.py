@@ -210,26 +210,53 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     payment_url = None
     suggestions = ""
 
-    if booking_intent_detected and matched_listing:
+    if matched_listing:
+        # Common listing info
         amount = matched_listing.get("price", 7000)
-        payment_url = Payment(
-            user_name="Guest",
-            email=user_email,
-            room_type=matched_listing["name"],
-            checkin=checkin,
-            checkout=checkout,
-            number_of_guests=2,
-            amountInCents=int(amount * 100 * Days)
+        name = matched_listing.get("name")
+        location = matched_listing.get("location", "N/A")
+        bedrooms = matched_listing.get("bedrooms", "N/A")
+        bathrooms = matched_listing.get("bathrooms", "N/A")
+        guests = matched_listing.get("guests", "N/A")
+        amenities = matched_listing.get("amenities", [])
+        url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
+
+        amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
+
+        info_text = (
+            f"🏠 *{name}* in {location}:\n"
+            f"• 💰 Price per night: {amount} EGP\n"
+            f"• 🛏️ Bedrooms: {bedrooms} | 🛁 Bathrooms: {bathrooms}\n"
+            f"• 👥 Accommodates: {guests} guests\n"
+            f"• 🌟 Amenities: {amenity_text}\n"
+            f"• 📌 Location: {location}\n"
+            f"• 🔗 Link: {url}"
         )
-        listing_text = f"Great to hear that you're ready to proceed with the booking!\nTo finalize your reservation for the {matched_listing['name']} in Cairo, Egypt, please complete the payment through this secure link:\n{payment_url}\n\n"
-        rules_text = "\n".join([
-            "• Check-in: 3:00 PM",
-            "• Check-out: 12:00 PM",
-            "• Pets: Not allowed",
-            "• Parties: Not allowed",
-            "• Smoking: Not allowed"
-        ])
-        suggestions = listing_text + f"📋 House Rules:\n{rules_text}"
+
+        # If it's a booking intent, also show payment
+        if booking_intent_detected:
+            payment_url = Payment(
+                user_name="Guest",
+                email=user_email,
+                room_type=name,
+                checkin=checkin,
+                checkout=checkout,
+                number_of_guests=2,
+                amountInCents=int(amount * 100 * Days)
+            )
+            suggestions = (
+                f"{info_text}\n\n"
+                f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
+                f"📋 House Rules:\n"
+                "• Check-in: 3:00 PM\n"
+                "• Check-out: 12:00 PM\n"
+                "• Pets: Not allowed\n"
+                "• Parties: Not allowed\n"
+                "• Smoking: Not allowed"
+            )
+        else:
+            suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
+
 
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
@@ -361,6 +388,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
     user_message = update.message.text
     user_id = str(update.effective_user.id)
+    
     print(f"\n=== DEBUG: Current State ===")
     print(f"User ID: {user_id}")
     print(f"Has Email: {user_id in context.chat_data['user_email']}")
