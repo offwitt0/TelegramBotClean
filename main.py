@@ -353,12 +353,19 @@ def save_user_email_mapping(user_id: str, email_address: str):
     mapping_path = "user_mapping.json"
     try:
         with open(mapping_path, "r") as f:
-            mapping = json.load(f)
+            try:
+                mapping = json.load(f)
+                if not isinstance(mapping, dict):
+                    mapping = {}
+            except json.JSONDecodeError:
+                mapping = {}
     except FileNotFoundError:
         mapping = {}
+
     mapping[user_id] = email_address
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
+
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
