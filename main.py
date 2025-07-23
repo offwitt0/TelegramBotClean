@@ -59,24 +59,27 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
 
 def extract_dates_from_message(message):
     try:
-        # Accepts formats like "from 22 to 28 Aug", "22 to 28 Aug", etc.
-        pattern = r'(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(\w{3,9})'
-        match = re.search(pattern, message.lower())
+        # Normalize message (remove punctuation, lower-case)
+        message = message.strip().lower().replace(".", "")
+        # Accept formats like "from 20 to 28 aug", "20 to 28 aug", etc.
+        pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]+)"
+        match = re.search(pattern, message)
         if match:
             day1 = int(match.group(1))
             day2 = int(match.group(2))
-            month_str = match.group(3)
+            month_str = match.group(3).capitalize()
 
             try:
-                month = list(calendar.month_name).index(month_str.capitalize())
+                month = list(calendar.month_name).index(month_str)
                 if month == 0:
-                    month = list(calendar.month_abbr).index(month_str.capitalize())
+                    month = list(calendar.month_abbr).index(month_str)
             except ValueError:
                 return None, None
 
             current_year = datetime.now().year
             checkin = datetime(current_year, month, day1)
             checkout = datetime(current_year, month, day2)
+
             if checkin < checkout:
                 return checkin.date(), checkout.date()
     except Exception as e:
