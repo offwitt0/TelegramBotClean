@@ -226,7 +226,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         info_text = (
             f"🏠 *{name}* in {location}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
-            f"• 🛏️ Bedrooms: {bedrooms} | 🛁 Bathrooms: {bathrooms}\n"
+            f"• 🛏️ Bedrooms: {bedrooms}\n"
+            f"• 🛁 Bathrooms: {bathrooms}\n"
             f"• 👥 Accommodates: {guests} guests\n"
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
@@ -287,7 +288,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         max_tokens=1000,
         temperature=0.7
     )
-    return response.choices[0].message.content.strip()
+    response_text = response.choices[0].message.content.strip()
+    # 🔒 Ensure payment URL is included even if LLM doesn't mention it
+    if payment_url and payment_url not in response_text:
+        response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
+    return response_text
+
 
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
