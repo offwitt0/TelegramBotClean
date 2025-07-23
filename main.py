@@ -57,35 +57,34 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         print("❌ Exception occurred:", e)
         return None
 
-def extract_dates_from_message(message):
-    try:
-        # Normalize message (remove punctuation, lower-case)
-        message = message.strip().lower().replace(".", "")
-        # Accept formats like "from 20 to 28 aug", "20 to 28 aug", etc.
-        pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]+)"
-        match = re.search(pattern, message)
-        if match:
-            day1 = int(match.group(1))
-            day2 = int(match.group(2))
-            month_str = match.group(3).capitalize()
+# def extract_dates_from_message(message):
+#     try:
+#         # Normalize message (remove punctuation, lower-case)
+#         message = message.strip().lower().replace(".", "")
+#         # Accept formats like "from 20 to 28 aug", "20 to 28 aug", etc.
+#         pattern = r"(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*([a-zA-Z]+)"
+#         match = re.search(pattern, message)
+#         if match:
+#             day1 = int(match.group(1))
+#             day2 = int(match.group(2))
+#             month_str = match.group(3).capitalize()
 
-            try:
-                month = list(calendar.month_name).index(month_str)
-                if month == 0:
-                    month = list(calendar.month_abbr).index(month_str)
-            except ValueError:
-                return None, None
+#             try:
+#                 month = list(calendar.month_name).index(month_str)
+#                 if month == 0:
+#                     month = list(calendar.month_abbr).index(month_str)
+#             except ValueError:
+#                 return None, None
 
-            current_year = datetime.now().year
-            checkin = datetime(current_year, month, day1)
-            checkout = datetime(current_year, month, day2)
+#             current_year = datetime.now().year
+#             checkin = datetime(current_year, month, day1)
+#             checkout = datetime(current_year, month, day2)
 
-            if checkin < checkout:
-                return checkin.date(), checkout.date()
-    except Exception as e:
-        print("❌ Date parsing error:", e)
-    return None, None
-
+#             if checkin < checkout:
+#                 return checkin.date(), checkout.date()
+#     except Exception as e:
+#         print("❌ Date parsing error:", e)
+#     return None, None
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -139,6 +138,9 @@ def get_prompt(payment_url=None):
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
     Only ignore a question if it's completely unrelated to travel.
     Use the internal knowledge base provided to answer questions clearly and accurately.
+    If the user provides travel dates in any format, convert and return:
+    - check-in in this format: "Check-in: DD Month YYYY"
+    - check-out in this format: "Check-out: DD Month YYYY"
     """
     if payment_url:
         base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
@@ -375,16 +377,33 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 
-    # Step 2: Ask for check-in/out dates
+    # Step 2: Use GPT to extract check-in/out dates
     if user_id not in context.chat_data["checkin_dates"]:
-        checkin, checkout = extract_dates_from_message(user_message)
-        if checkin and checkout:
-            context.chat_data["checkin_dates"][user_id] = {"checkin": checkin, "checkout": checkout}
-            reply = await update.message.reply_text("✅ Got your travel dates! How can I assist you now?")
-            context.chat_data["all_messages"][user_id].append(reply.message_id)
-        else:
-            reply = await update.message.reply_text("📆 Please provide your travel dates in this format: from 20 to 23 Aug.")
-            context.chat_data["all_messages"][user_id].append(reply.message_id)
+        reply_text = generate_response(
+            user_message,
+            sender_id=context.chat_data["user_email"][user_id],
+            history=context.chat_data["chat_history"].get(user_id, []),
+            checkin=None,
+            checkout=None
+        )
+
+        # 🧠 Try to extract dates from the GPT response using a structured prompt
+        date_pattern = r"check[- ]?in[:\-]?\s*(\d{1,2} \w+ \d{4}).*?check[- ]?out[:\-]?\s*(\d{1,2} \w+ \d{4})"
+        match = re.search(date_pattern, reply_text, re.IGNORECASE)
+        if match:
+            try:
+                checkin = datetime.strptime(match.group(1), "%d %B %Y").date()
+                checkout = datetime.strptime(match.group(2), "%d %B %Y").date()
+                if checkin < checkout:
+                    context.chat_data["checkin_dates"][user_id] = {"checkin": checkin, "checkout": checkout}
+                    reply = await update.message.reply_text("✅ Got your travel dates! How can I assist you now?")
+                    context.chat_data["all_messages"][user_id].append(reply.message_id)
+                    return
+            except Exception as e:
+                print("❌ GPT date parse error:", e)
+
+        reply = await update.message.reply_text("📆 Please rephrase your travel dates clearly (e.g. from 20 to 26 Aug).")
+        context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
 
     # Step 3: Normal conversation
