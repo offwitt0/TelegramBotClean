@@ -376,15 +376,16 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Step 1: Ask for email
     if user_id not in context.chat_data["user_email"]:
         print(f"🧪 Checking email validity for user_id {user_id}: {user_message}")
-        if is_valid_email(user_message.strip()):
-            email = user_message.strip()
-            context.chat_data["user_email"][user_id] = email
-            save_user_email_mapping(user_id, email)
+        clean_email = user_message.strip().lower()
+        if is_valid_email(clean_email):
 
+            context.chat_data["user_email"][user_id] = clean_email
+            save_user_email_mapping(user_id, clean_email)
             reply = await update.message.reply_text(
                 "📧 Email saved successfully!\n\n📅 Now please enter your travel dates (e.g. from 20 to 23 Aug)"
             )
             context.chat_data["all_messages"][user_id].append(reply.message_id)
+
         else:
             reply = await update.message.reply_text("📧 Please enter a valid email address to continue.")
             context.chat_data["all_messages"][user_id].append(reply.message_id)
