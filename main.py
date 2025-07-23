@@ -388,7 +388,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
     user_message = update.message.text
     user_id = str(update.effective_user.id)
-    
+    # Initialize chat_data keys safely if missing
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+        if key not in context.chat_data:
+            context.chat_data[key] = {}
     print(f"\n=== DEBUG: Current State ===")
     print(f"User ID: {user_id}")
     print(f"Has Email: {user_id in context.chat_data['user_email']}")
