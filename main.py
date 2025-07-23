@@ -59,15 +59,14 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
 
 def extract_dates_from_message(message):
     try:
-        # Example: "from 20 to 25 Aug" or "20 to 25 Aug"
-        pattern = r'(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(\w{3,9})'
+        # Accepts formats like "from 22 to 28 Aug", "22 to 28 Aug", etc.
+        pattern = r'(?:from\s*)?(\d{1,2})\s*(?:to|-)\s*(\d{1,2})\s*(\w{3,9})'
         match = re.search(pattern, message.lower())
         if match:
             day1 = int(match.group(1))
             day2 = int(match.group(2))
             month_str = match.group(3)
 
-            # Try to convert month to number
             try:
                 month = list(calendar.month_name).index(month_str.capitalize())
                 if month == 0:
@@ -80,9 +79,10 @@ def extract_dates_from_message(message):
             checkout = datetime(current_year, month, day2)
             if checkin < checkout:
                 return checkin.date(), checkout.date()
-    except:
-        pass
+    except Exception as e:
+        print("❌ Date parsing error:", e)
     return None, None
+
 
 # ================== ENV & CONFIG ==================
 load_dotenv()
@@ -362,12 +362,15 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            reply = await update.message.reply_text("📅 Great! When are you planning to travel to Cairo? (e.g. from 20 to 23 Aug)")
-            context.chat_data["all_messages"][user_id].append(reply.message_id)
+
+            reply1 = await update.message.reply_text("📧 Email saved successfully!")
+            reply2 = await update.message.reply_text("📅 Now please enter your travel dates (e.g. from 20 to 23 Aug)")
+            context.chat_data["all_messages"][user_id].extend([reply1.message_id, reply2.message_id])
         else:
             reply = await update.message.reply_text("📧 Please enter a valid email address to continue.")
             context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
+
 
     # Step 2: Ask for check-in/out dates
     if user_id not in context.chat_data["checkin_dates"]:
