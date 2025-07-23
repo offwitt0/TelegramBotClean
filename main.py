@@ -334,60 +334,68 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     now = datetime.utcnow()
 
+    # Setup default storage
     context.chat_data.setdefault("chat_history", {})
     context.chat_data.setdefault("user_email", {})
     context.chat_data.setdefault("last_active", {})
-    context.chat_data.setdefault("bot_messages", {})
+    context.chat_data.setdefault("all_messages", {})
 
-    # Inactivity check
+    # Inactivity check: 2 minutes
     last_active = context.chat_data["last_active"].get(user_id)
     if last_active and (now - last_active).total_seconds() > 120:
-        for msg_id in context.chat_data["bot_messages"].get(user_id, []):
+        # 🧹 Delete all stored message IDs
+        for msg_id in context.chat_data["all_messages"].get(user_id, []):
             try:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
             except Exception as e:
                 logging.warning(f"⚠️ Failed to delete message {msg_id}: {e}")
 
+        # 🧼 Clear session data
         context.chat_data["chat_history"].pop(user_id, None)
         context.chat_data["user_email"].pop(user_id, None)
         context.chat_data["last_active"].pop(user_id, None)
-        context.chat_data["bot_messages"].pop(user_id, None)
+        context.chat_data["all_messages"].pop(user_id, None)
 
-        await update.message.reply_text("🕒 Your session has been reset due to inactivity. Please enter your email to get started.")
+        msg = await update.message.reply_text("🕒 Your session has been reset due to inactivity. Please enter your email to get started.")
+        context.chat_data["all_messages"].setdefault(user_id, []).append(msg.message_id)
         return
 
-    # Update last active time
+    # ⏱️ Update last activity timestamp
     context.chat_data["last_active"][user_id] = now
 
-    # Handle new users who haven't sent email yet
+    # 💬 Store the user's message ID to delete later
+    context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
+
+    # ✅ Handle email collection if needed
     if user_id not in context.chat_data["user_email"]:
         if is_valid_email(user_message):
             context.chat_data["user_email"][user_id] = user_message
             save_user_email_mapping(user_id, user_message)
-            await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+            reply = await update.message.reply_text("✅ Email saved. When are you planning to travel to Cairo?")
+            context.chat_data["all_messages"][user_id].append(reply.message_id)
         else:
-            await update.message.reply_text("📧 Please provide a valid email address to continue.")
+            reply = await update.message.reply_text("📧 Please provide a valid email address to continue.")
+            context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
-    
-    # Initialize history if needed
-    context.chat_data["chat_history"].setdefault(user_id, [])
-    context.chat_data["chat_history"][user_id].append({"role": "user", "content": user_message})
+
+    # ✍️ Add message to chat history
+    context.chat_data["chat_history"].setdefault(user_id, []).append({"role": "user", "content": user_message})
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
     try:
-        reply = generate_response(
+        reply_text = generate_response(
             user_message,
             context.chat_data["user_email"][user_id],
             context.chat_data["chat_history"][user_id]
         )
-        sent = await update.message.reply_text(reply)
-        context.chat_data["bot_messages"].setdefault(user_id, []).append(sent.message_id)
-        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply})
+        reply_msg = await update.message.reply_text(reply_text)
+        context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
+        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply_text})
     except Exception as e:
-        await update.message.reply_text("❌ Bot error")
+        err = await update.message.reply_text("❌ Bot error")
+        context.chat_data["all_messages"][user_id].append(err.message_id)
         logging.error(e)
-
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
