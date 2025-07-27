@@ -215,8 +215,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
         city_hint = matched_listing.get("city_hint")
-        location_url = matched_listing.get("location", "N/A")
-        location = f"[📍 View on Map]({location_url})"
+        location = matched_listing.get("location", "N/A")
         bedrooms = matched_listing.get("bedrooms", "N/A")
         bathrooms = matched_listing.get("bathrooms", "N/A")
         guests = matched_listing.get("guests", "N/A")
@@ -234,6 +233,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
             f"• 🔗 Link: {url}"
+            f"📋 House Rules:\n"
+                "• Check-in: 3:00 PM\n"
+                "• Check-out: 12:00 PM\n"
+                "• Pets: Not allowed\n"
+                "• Parties: Not allowed\n"
+                "• Smoking: Not allowed"
         )
 
         # If it's a booking intent, also show payment
@@ -250,12 +255,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             suggestions = (
                 f"{info_text}\n\n"
                 f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
-                f"📋 House Rules:\n"
-                "• Check-in: 3:00 PM\n"
-                "• Check-out: 12:00 PM\n"
-                "• Pets: Not allowed\n"
-                "• Parties: Not allowed\n"
-                "• Smoking: Not allowed"
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
@@ -286,7 +285,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     Knowledge base:
     {kb_context}
-    House Rules:
     {suggestions}
     """
 
