@@ -214,7 +214,9 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         # Common listing info
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
-        location = matched_listing.get("location", "N/A")
+        city_hint = matched_listing.get("city_hint")
+        location_url = matched_listing.get("location", "N/A")
+        location = f"[📍 View on Map]({location_url})"
         bedrooms = matched_listing.get("bedrooms", "N/A")
         bathrooms = matched_listing.get("bathrooms", "N/A")
         guests = matched_listing.get("guests", "N/A")
@@ -224,7 +226,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
         info_text = (
-            f"🏠 *{name}* in {location}:\n"
+            f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
             f"• 🛏️ Bedrooms: {bedrooms}\n"
             f"• 🛁 Bathrooms: {bathrooms}\n"
@@ -284,7 +286,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     Knowledge base:
     {kb_context}
-
+    House Rules:
     {suggestions}
     """
 
