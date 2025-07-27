@@ -268,8 +268,17 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     if history:
         for turn in history[-6:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
+    # Prepare explicit instructions for GPT to avoid redundant questions
+    booking_context = ""
+    if booking_intent_detected and matched_listing and checkin and checkout:
+        booking_context = (
+            f"\nUser has requested to book *{matched_listing['name']}* "
+            f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
+            f"A payment link has already been generated. Do not ask for dates again."
+        )
 
     system_message = f"""{get_prompt(payment_url)}
+    {booking_context}
     Previous conversation:
     {chat_history}
 

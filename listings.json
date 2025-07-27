@@ -8,7 +8,7 @@
     "bathrooms": 1,
     "price": 700,
     "rating": 4.75,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/92Ps6YGUVUUhzY7z6",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -46,7 +46,7 @@
     "bathrooms": 3,
     "price": 400,
     "rating": 5.0,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/kRapVTNkhvKDm3gV8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -83,7 +83,7 @@
     "bathrooms": 2,
     "price": 900,
     "rating": 4.9,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/ATFbhabRFDJn3mT87",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -176,7 +176,7 @@
     "bathrooms": 2,
     "rating": 4.35,
     "price": 1000,
-    "location": 0,
+    "location": "8 Rawdet al ahram",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -195,7 +195,7 @@
     "bathrooms": 1,
     "rating": 5.0,
     "price": 1300,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/29%C2%B059'26.7%22N+31%C2%B008'24.4%22E/@29.990772,31.1398742,21z/data=!4m4!3m3!8m2!3d29.9907417!4d31.1401147?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -252,7 +252,7 @@
     "bathrooms": 2,
     "rating": 5.0,
     "price": 550,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/XB5JrR3mzCNzksrV7",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -270,7 +270,7 @@
     "bathrooms": 2.5,
     "rating": 4.5,
     "price": 300,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/kaHCXPmjLHpQa1US8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -291,7 +291,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 350,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/iAs1a5LTeWpLYb1v6",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -311,7 +311,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 710,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/1nGxGmxdg9mmaey2A",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -331,7 +331,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 200,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/gDY71mbffTmFApjn9",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -351,7 +351,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 200,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/ATFbhabRFDJn3mT87",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -371,7 +371,7 @@
     "bathrooms": 3.0,
     "rating": 4.5,
     "price": 200,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/P4PHnbL46CnP9Koc8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -390,7 +390,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 100,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/P4PHnbL46CnP9Koc8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -409,7 +409,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 150,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/P4PHnbL46CnP9Koc8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -428,7 +428,7 @@
     "bathrooms": 1.0,
     "rating": 4.5,
     "price": 150,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/P4PHnbL46CnP9Koc8",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -447,7 +447,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 180,
-    "location": 0,
+    "location": "8 Rawdet al ahram",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -466,7 +466,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 780,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/eSDdE19g4m8T3Gg89",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -485,7 +485,7 @@
     "bathrooms": 5.0,
     "rating": 4.5,
     "price": 800,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/29%C2%B059'26.7%22N+31%C2%B008'24.4%22E/@29.990772,31.1398742,21z/data=!4m4!3m3!8m2!3d29.9907417!4d31.1401147?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -504,7 +504,7 @@
     "bathrooms": 1.5,
     "rating": 4.5,
     "price": 700,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/29%C2%B059'26.7%22N+31%C2%B008'24.4%22E/@29.990772,31.1398742,21z/data=!4m4!3m3!8m2!3d29.9907417!4d31.1401147?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -523,7 +523,7 @@
     "bathrooms": 1.5,
     "rating": null,
     "price": 700,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/29%C2%B059'26.7%22N+31%C2%B008'24.4%22E/@29.990772,31.1398742,21z/data=!4m4!3m3!8m2!3d29.9907417!4d31.1401147?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -542,7 +542,7 @@
     "bathrooms": 2,
     "rating": null,
     "price": 700,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/29%C2%B059'26.7%22N+31%C2%B008'24.4%22E/@29.990772,31.1398742,21z/data=!4m4!3m3!8m2!3d29.9907417!4d31.1401147?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -561,7 +561,7 @@
     "bathrooms": 2,
     "rating": null,
     "price": 700,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/33+Ahmed+Heshmat,+Mohammed+Mazhar,+Zamalek,+Giza+Governorate+4271161/@30.0677635,31.2210478,21z/data=!4m6!3m5!1s0x145840e3381c0995:0x4b590cd7db1e9b93!8m2!3d30.0677121!4d31.221077!16s%2Fg%2F11rp6fb6rp?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
     ],
     "url": "https://www.airbnb.com/rooms/1413235497286439324?source_impression_id=p3_1753267323_P39WkH_arw9A2UDL"
@@ -575,7 +575,7 @@
     "bathrooms": 1.5,
     "rating": 4.5,
     "price": 700,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/92Ps6YGUVUUhzY7z6",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -594,7 +594,7 @@
     "bathrooms": 2.0,
     "rating": 4.5,
     "price": 700,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/XB5JrR3mzCNzksrV7",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -651,7 +651,7 @@
     "bathrooms": 1,
     "rating": null,
     "price": 500,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/XQNfqcbK5rvRmUTb9",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -670,7 +670,7 @@
     "bathrooms": 1,
     "rating": null,
     "price": 500,
-    "location": 0,
+    "location": "https://www.google.com/maps/place/7%2F96+Othman+Ibn+Effan,+Second+New+Cairo,+Cairo+Governorate+4750521/@30.0756385,31.4841144,19.75z/data=!4m6!3m5!1s0x1458185c15260b8b:0xcfb26f13f9e59a8e!8m2!3d30.0756168!4d31.4842279!16s%2Fg%2F11c4f8hvlp?entry=ttu&g_ep=EgoyMDI1MDUyMS4wIKXMDSoASAFQAw%3D%3D",
     "amenities": [
       "Kitchen",
       "Air conditioning",
@@ -716,7 +716,7 @@
     "bathrooms": null,
     "price": 540,
     "rating": null,
-    "location": 0,
+    "location": "https://maps.app.goo.gl/fKGUfNFt83hibXAn7",
     "amenities": [
     ],
     "url": ""
@@ -730,7 +730,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 540,
-    "location": 0,
+    "location": "7 shafek mansour / serilanka",
     "amenities": [
     ],
     "url": ""
@@ -744,7 +744,7 @@
     "bathrooms": null,
     "rating": null,
     "price": 540,
-    "location": 0,
+    "location": "14 st  shagret eldor",
     "amenities": [
     ],
     "url": ""
