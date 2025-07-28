@@ -24,8 +24,6 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
-import pandas as pd
-
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -132,14 +130,6 @@ with open("listings.json", "r", encoding="utf-8") as f:
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
-excel_data = pd.read_excel("AnQa.xlsx", engine="openpyxl")
-excel_data.columns = excel_data.columns.str.strip()  # Remove leading/trailing spaces
-# Normalize property names for case-insensitive matching
-excel_mapping = {
-    str(row["name"]).strip().lower(): row.to_dict()
-    for _, row in excel_data.iterrows()
-}
-
 # def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
 #     area_encoded = quote(area)
 #     return (
@@ -215,25 +205,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
-    listing_name = matched_listing["name"].lower()
-    excel_info = excel_mapping.get(listing_name)
-
-    if excel_info:
-        excel_details = (
-            f"📍 *Street:* {excel_info.get('Street', 'N/A')}\n"
-            f"🏢 *Floor:* {excel_info.get('Floor', 'N/A')}\n"
-            f"👥 *Guests:* {excel_info.get('Guests', 'N/A')}\n"
-            f"🛏 *Bedrooms:* {excel_info.get('Bedrooms #', 'N/A')}\n"
-            f"🛏 *Double Beds:* {excel_info.get('Double Beds #', 'N/A')}\n"
-            f"🛏 *Single Beds:* {excel_info.get('Single Beds #', 'N/A')}\n"
-            f"🛁 *Bathrooms:* {excel_info.get('Bathrooms #', 'N/A')}\n"
-            f"🅿️ *Parking:* {excel_info.get('Parking', 'N/A')}\n"
-            f"🛗 *Elevator:* {excel_info.get('Elevator', 'N/A')}\n"
-            f"🧳 *Luggage:* {excel_info.get('Luggage', 'N/A')}"
-        )
-    else:
-        excel_details = "*Additional details not available.*"
-
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     payment_url = None
@@ -261,8 +232,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 👥 Accommodates: {guests} guests\n"
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
-            f"• 🔗 Link: {url}\n\n"
-            f"• Extra Details: {excel_details}\n\n"
+            f"• 🔗 Link: {url}"
             f"📋 House Rules:\n"
                 "• Check-in: 3:00 PM\n"
                 "• Check-out: 12:00 PM\n"
