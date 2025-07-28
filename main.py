@@ -296,22 +296,23 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
 
-    if matched_Excel_listing:
+    info_excel = ""
 
-  
-        unit_name = matched_Excel_listing.get["name"] 
-        state = matched_Excel_listing.get["State"]
-        area = matched_Excel_listing.get["Area"]
-        street = matched_Excel_listing.get["Street"]
-        floor = matched_Excel_listing.get["Floor"]
-        guests_Excel = matched_Excel_listing.get["Guests"]
-        bedroomsNum = matched_Excel_listing.get["Bedrooms #"]
-        double_beds = matched_Excel_listing.get["Double Beds #"]
-        single_beds = matched_Excel_listing.get["Single Beds #"]
-        bathroomsNum = matched_Excel_listing.get["Bathrooms #"]
-        parking = matched_Excel_listing.get["Parking"]
-        elevator = matched_Excel_listing.get["Elevator"]
-        luggage = matched_Excel_listing.get["Luggage"]
+    if matched_Excel_listing
+        unit_name = matched_Excel_listing.get("name")
+        state = matched_Excel_listing.get("State")
+        area = matched_Excel_listing.get("Area")
+        street = matched_Excel_listing.get("Street")
+        floor = matched_Excel_listing.get("Floor")
+        guests_Excel = matched_Excel_listing.get("Guests")
+        bedroomsNum = matched_Excel_listing.get("Bedrooms #")
+        double_beds = matched_Excel_listing.get("Double Beds #")
+        single_beds = matched_Excel_listing.get("Single Beds #")
+        bathroomsNum = matched_Excel_listing.get("Bathrooms #")
+        parking = matched_Excel_listing.get("Parking")
+        elevator = matched_Excel_listing.get("Elevator")
+        luggage = matched_Excel_listing.get("Luggage")
+
 
         info_excel = f"""
         This unit is named "{unit_name}". It is located in {state}, specifically in the {area} area, on {street} street, floor {floor}.
