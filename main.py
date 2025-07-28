@@ -238,7 +238,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         None
     )
     matched_Excel_listing = next(
-            (l for l in AnQa_data if str(l.get("name", "")).lower() in user_message.lower()),
+            (l for l in AnQa_data if str(l.get("Area", "")).lower() in user_message.lower()),
             None
         )
 
@@ -298,7 +298,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     info_excel = ""
 
-    if matched_Excel_listing
+    if matched_Excel_listing:
         unit_name = matched_Excel_listing.get("name")
         state = matched_Excel_listing.get("State")
         area = matched_Excel_listing.get("Area")
