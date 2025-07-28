@@ -238,9 +238,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         None
     )
     matched_Excel_listing = next(
-        (l for l in AnQa_data if l["name"].lower() in user_message.lower()),
-        None
-    )
+            (l for l in AnQa_data if str(l.get("name", "")).lower() in user_message.lower()),
+            None
+        )
+
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     payment_url = None
@@ -297,14 +298,14 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     if matched_Excel_listing:
         fields_to_extract = [
-    "Unit Name", "State", "Area", "Street", "Floor", "Guests",
+    "name", "State", "Area", "Street", "Floor", "Guests",
     "Bedrooms #", "Double Beds #", "Single Beds #", "Bathrooms #",
     "Parking", "Elevator", "Luggage"
 ]
     if matched_Excel_listing:
 
         info = {field: AnQa_data[i].get(field) for field in fields_to_extract}
-        unit_name = info["Unit Name"] 
+        unit_name = info["name"] 
         state = info["State"]
         area = info["Area"]
         street = info["Street"]
