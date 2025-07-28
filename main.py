@@ -26,6 +26,7 @@ import requests
 import string
 import pandas as pd
 
+
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
@@ -58,10 +59,6 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         print("❌ Exception occurred:", e)
         return None
 
-extra_info_map = {
-        str(row["name"]).lower(): row.to_dict()
-        for _, row in pd.read_excel("AnQa.xlsx", engine="openpyxl").iterrows()
-    }
 def extract_dates_from_message(message):
     try:
         print(f"🔍 Parsing dates from message: {message}")  # Debug print
@@ -135,6 +132,11 @@ with open("listings.json", "r", encoding="utf-8") as f:
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
+excel_data = pd.read_excel("AnQa.xlsx", engine="openpyxl")  # engine is optional but safer for .xlsx
+
+# Convert to list of dictionaries if needed (similar to json.load)
+AnQa_data = excel_data.to_dict(orient="records")
+
 # def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
 #     area_encoded = quote(area)
 #     return (
@@ -156,6 +158,30 @@ def get_prompt(payment_url=None):
     if payment_url:
         base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
     return base
+
+
+
+def search_listings(query, guests=2):
+    query_words = query.lower().split()
+    matched, fallback = [], []
+
+    for listing in AnQa_data:
+        name = str(listing.get("Unit Name", "")).lower()
+        city = str(listing.get("Area", "")).lower()
+        guest_ok = (listing.get("Guests") or 0) >= guests
+
+        if not guest_ok:
+            continue
+
+        strong_match = any(q == city for q in query_words)
+        weak_match = any(q in name or q in city for q in query_words)
+
+        if strong_match:
+            matched.append(listing)
+        elif weak_match:
+            fallback.append(listing)
+
+    return matched if matched else fallback
 
 def find_matching_listings(query, guests=2):
     query_clean = query.lower().translate(str.maketrans('', '', string.punctuation))
@@ -203,11 +229,16 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     listings = find_matching_listings(user_message, guests=2)
+    Excel_Listing = search_listings(user_message, 2)
     booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
     booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
+        None
+    )
+    matched_Excel_listing = next(
+        (l for l in AnQa_data if l["name"].lower() in user_message.lower()),
         None
     )
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
@@ -229,21 +260,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
-        extra_info = extra_info_map.get(name.lower())
-        extra_info_text = ""
-        if extra_info:
-            extra_info_text = "\n\n📎 *Extra Property Info:*"
-            if extra_info.get("state"):
-                extra_info_text += f"\n• State: {extra_info['state']}"
-            if extra_info.get("floor"):
-                extra_info_text += f"\n• Floor: {extra_info['floor']}"
-            if extra_info.get("parking"):
-                extra_info_text += f"\n• Parking: {extra_info['parking']}"
-            if extra_info.get("elevator"):
-                extra_info_text += f"\n• Elevator: {extra_info['elevator']}"
-            if extra_info.get("luggage"):
-                extra_info_text += f"\n• Luggage: {extra_info['luggage']}"
-
         info_text = (
             f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
@@ -253,7 +269,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
             f"• 🔗 Link: {url}"
-            f"{extra_info_text}"
             f"📋 House Rules:\n"
                 "• Check-in: 3:00 PM\n"
                 "• Check-out: 12:00 PM\n"
@@ -280,7 +295,42 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
 
+    if matched_Excel_listing:
+        fields_to_extract = [
+    "Unit Name", "State", "Area", "Street", "Floor", "Guests",
+    "Bedrooms #", "Double Beds #", "Single Beds #", "Bathrooms #",
+    "Parking", "Elevator", "Luggage"
+]
+    if matched_Excel_listing:
 
+        info = {field: AnQa_data[i].get(field) for field in fields_to_extract}
+        unit_name = info["Unit Name"] 
+        state = info["State"]
+        area = info["Area"]
+        street = info["Street"]
+        floor = info["Floor"]
+        guests_Excel = info["Guests"]
+        bedroomsNum = info["Bedrooms #"]
+        double_beds = info["Double Beds #"]
+        single_beds = info["Single Beds #"]
+        bathroomsNum = info["Bathrooms #"]
+        parking = info["Parking"]
+        elevator = info["Elevator"]
+        luggage = info["Luggage"]
+
+        info_excel = f"""
+        This unit is named "{unit_name}". It is located in {state}, specifically in the {area} area, on {street} street, floor {floor}.
+
+        Accommodation details:
+        - Can host {guests_Excel} guests.
+        - {bedroomsNum} bedroom(s), with {double_beds} double bed(s) and {single_beds} single bed(s).
+        - {bathroomsNum} bathroom(s).
+
+        Amenities:
+        - Parking available: {parking}
+        - Elevator available: {elevator}
+        - Luggage storage: {luggage}
+        """   
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
@@ -303,7 +353,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     {booking_context}
     Previous conversation:
     {chat_history}
-
+    these are additional infos if needed
+    {info_excel}
     Knowledge base:
     {kb_context}
     {suggestions}
