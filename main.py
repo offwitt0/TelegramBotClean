@@ -161,33 +161,6 @@ def get_prompt(payment_url=None):
         base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
     return base
 
-<<<<<<< HEAD
-=======
-
-# hello 
-def search_listings(query, guests=2):
-    query_words = query.lower().split()
-    matched, fallback = [], []
-
-    for listing in AnQa_data:
-        name = str(listing.get("name", "")).lower()
-        city = str(listing.get("Area", "")).lower()
-        guest_ok = (listing.get("Guests") or 0) >= guests
-
-        if not guest_ok:
-            continue
-
-        strong_match = any(q == city for q in query_words)
-        weak_match = any(q in name or q in city for q in query_words)
-
-        if strong_match:
-            matched.append(listing)
-        elif weak_match:
-            fallback.append(listing)
-
-    return matched if matched else fallback
-
->>>>>>> 1a9029956052d5443559359f56602fe9fd273496
 def find_matching_listings(query, guests=2):
     query_clean = query.lower().translate(str.maketrans('', '', string.punctuation))
     query_words = query_clean.split()
@@ -241,14 +214,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
-<<<<<<< HEAD
-=======
-    matched_Excel_listing = next(
-            (l for l in AnQa_data if str(l.get("Area", "")).lower() in user_message.lower()),
-            None
-        )
-
->>>>>>> 1a9029956052d5443559359f56602fe9fd273496
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     payment_url = None
@@ -324,41 +289,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
 
-<<<<<<< HEAD
 
-=======
-    info_excel = ""
-
-    if matched_Excel_listing:
-        unit_name = matched_Excel_listing.get("name")
-        state = matched_Excel_listing.get("State")
-        area = matched_Excel_listing.get("Area")
-        street = matched_Excel_listing.get("Street")
-        floor = matched_Excel_listing.get("Floor")
-        guests_Excel = matched_Excel_listing.get("Guests")
-        bedroomsNum = matched_Excel_listing.get("Bedrooms #")
-        double_beds = matched_Excel_listing.get("Double Beds #")
-        single_beds = matched_Excel_listing.get("Single Beds #")
-        bathroomsNum = matched_Excel_listing.get("Bathrooms #")
-        parking = matched_Excel_listing.get("Parking")
-        elevator = matched_Excel_listing.get("Elevator")
-        luggage = matched_Excel_listing.get("Luggage")
-
-
-        info_excel = f"""
-        This unit is named "{unit_name}". It is located in {state}, specifically in the {area} area, on {street} street, floor {floor}.
-
-        Accommodation details:
-        - Can host {guests_Excel} guests.
-        - {bedroomsNum} bedroom(s), with {double_beds} double bed(s) and {single_beds} single bed(s).
-        - {bathroomsNum} bathroom(s).
-
-        Amenities:
-        - Parking available: {parking}
-        - Elevator available: {elevator}
-        - Luggage storage: {luggage}
-        """   
->>>>>>> 1a9029956052d5443559359f56602fe9fd273496
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
