@@ -133,6 +133,7 @@ embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
 excel_data = pd.read_excel("AnQa.xlsx", engine="openpyxl")
+excel_data.columns = excel_data.columns.str.strip()  # Remove leading/trailing spaces
 # Normalize property names for case-insensitive matching
 excel_mapping = {
     str(row["name"]).strip().lower(): row.to_dict()
