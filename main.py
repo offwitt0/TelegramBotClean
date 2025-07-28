@@ -329,6 +329,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         """   
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+    elif Excel_Listing:
+        suggestions = "\n\nHere are some great options for you:\n" + "\n".join(Excel_Listing)
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
 
