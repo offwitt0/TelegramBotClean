@@ -724,13 +724,27 @@
   {
     "id": "",
     "name": "zamalek Studio",
-    "city_hint": "cairo",
+    "city_hint": "zamalek",
     "guests": null,
     "bedrooms": null,
     "bathrooms": null,
     "rating": null,
     "price": 540,
     "location": "7 shafek mansour / serilanka",
+    "amenities": [
+    ],
+    "url": ""
+  },
+  {
+    "id": "",
+    "name": "Zamalek Taha Hussein",
+    "city_hint": "zamalek",
+    "guests": 7,
+    "bedrooms": 3,
+    "bathrooms": 2.5,
+    "rating": null,
+    "price": 540,
+    "location": "https://maps.app.goo.gl/kaHCXPmjLHpQa1US8",
     "amenities": [
     ],
     "url": ""
