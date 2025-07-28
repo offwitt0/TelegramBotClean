@@ -24,6 +24,7 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
+import pandas as pd
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -207,6 +208,11 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     )
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
+    extra_info_map = {
+        str(row["name"]).lower(): row.to_dict()
+        for _, row in pd.read_excel("AnQa.xlsx").iterrows()
+    }
+
     payment_url = None
     suggestions = ""
 
@@ -224,6 +230,21 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
+        extra_info = extra_info_map.get(name.lower())
+        extra_info_text = ""
+        if extra_info:
+            extra_info_text = "\n\n📎 *Extra Property Info:*"
+            if extra_info.get("state"):
+                extra_info_text += f"\n• State: {extra_info['state']}"
+            if extra_info.get("floor"):
+                extra_info_text += f"\n• Floor: {extra_info['floor']}"
+            if extra_info.get("parking"):
+                extra_info_text += f"\n• Parking: {extra_info['parking']}"
+            if extra_info.get("elevator"):
+                extra_info_text += f"\n• Elevator: {extra_info['elevator']}"
+            if extra_info.get("luggage"):
+                extra_info_text += f"\n• Luggage: {extra_info['luggage']}"
+
         info_text = (
             f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
@@ -233,6 +254,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
             f"• 🔗 Link: {url}"
+            f"{extra_info_text}"
             f"📋 House Rules:\n"
                 "• Check-in: 3:00 PM\n"
                 "• Check-out: 12:00 PM\n"
