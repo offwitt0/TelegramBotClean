@@ -130,6 +130,14 @@ with open("listings.json", "r", encoding="utf-8") as f:
 embeddings = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
 vectorstore = FAISS.load_local("guest_kb_vectorstore", embeddings, allow_dangerous_deserialization=True)
 
+import pandas as pd
+df = pd.read_excel("AnQa.xlsx")
+excel_mapping = {
+    str(row.get("name", "")).strip().lower(): row.to_dict()
+    for _, row in df.iterrows()
+    if str(row.get("name", "")).strip()  # ensure it's not empty
+}
+
 # def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
 #     area_encoded = quote(area)
 #     return (
@@ -205,6 +213,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
+
+    extra_excel_info = None
+    if matched_listing:
+        listing_name_lower = matched_listing['name'].strip().lower()
+        extra_excel_info = excel_mapping.get(listing_name_lower)
+
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     payment_url = None
@@ -224,6 +238,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
+        excel_details = ""
+        if extra_excel_info:
+            for key, value in extra_excel_info.items():
+                if key.lower() not in ['name']:  # skip name as it's already shown
+                    excel_details += f"• {key.title()}: {value}\n"
+
         info_text = (
             f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
@@ -232,13 +252,14 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 👥 Accommodates: {guests} guests\n"
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
-            f"• 🔗 Link: {url}"
+            f"• 🔗 Link: {url}\n\n"
+            f"{excel_details}\n\n"
             f"📋 House Rules:\n"
-                "• Check-in: 3:00 PM\n"
-                "• Check-out: 12:00 PM\n"
-                "• Pets: Not allowed\n"
-                "• Parties: Not allowed\n"
-                "• Smoking: Not allowed"
+            "• Check-in: 3:00 PM\n"
+            "• Check-out: 12:00 PM\n"
+            "• Pets: Not allowed\n"
+            "• Parties: Not allowed\n"
+            "• Smoking: Not allowed"
         )
 
         # If it's a booking intent, also show payment
