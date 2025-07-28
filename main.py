@@ -215,7 +215,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
-    listing_name = matched_listing["name"].strip().lower()
+    listing_name = matched_listing["name"].lower()
     excel_info = excel_mapping.get(listing_name)
 
     if excel_info:
