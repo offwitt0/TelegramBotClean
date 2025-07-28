@@ -166,7 +166,7 @@ def search_listings(query, guests=2):
     matched, fallback = [], []
 
     for listing in AnQa_data:
-        name = str(listing.get("Unit Name", "")).lower()
+        name = str(listing.get("name", "")).lower()
         city = str(listing.get("Area", "")).lower()
         guest_ok = (listing.get("Guests") or 0) >= guests
 
