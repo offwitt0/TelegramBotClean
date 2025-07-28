@@ -283,7 +283,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         )
 
         # If it's a booking intent, also show payment
-        if email and checkin and checkout and detect_booking_intent(user_message, chat_history):
+        if detect_booking_intent(user_message, chat_history):
             payment_url = Payment(user_name = "Guest", email = user_email, room_type = name, checkin = checkin, checkout = checkout, number_of_guests = 2, amountInCents=int(amount * 100 * Days))
             suggestions = (
                 f"{info_text}\n\n"
@@ -291,7 +291,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             )
             chat_history.append(f"Bot: Sent payment link")
             return f"🧾 Great! Here's your payment link:\n{payment_url}"
-
 
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
