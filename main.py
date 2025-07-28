@@ -302,9 +302,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     "Bedrooms #", "Double Beds #", "Single Beds #", "Bathrooms #",
     "Parking", "Elevator", "Luggage"
 ]
-    if matched_Excel_listing:
 
-        info = {field: AnQa_data[i].get(field) for field in fields_to_extract}
+        info = Excel_Listing
         unit_name = info["name"] 
         state = info["State"]
         area = info["Area"]
