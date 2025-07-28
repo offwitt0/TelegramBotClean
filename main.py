@@ -6,7 +6,6 @@ import imaplib
 import smtplib
 import email
 import re
-import openai
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from urllib.parse import quote
@@ -196,25 +195,6 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def detect_booking_intent(user_message, chat_history):
-    prompt = f"""You are a booking assistant. Decide if the user clearly intends to book based on the conversation.
-
-Chat history:
-{chr(10).join(chat_history[-6:])}
-
-Latest message:
-"{user_message}"
-
-Respond with "yes" or "no". Does the user want to book now?
-"""
-
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
-    return "yes" in response.choices[0].message["content"].strip().lower()
-
 def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None):
     if not checkin or not checkout:
         today = datetime.today().date()
@@ -283,14 +263,23 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         )
 
         # If it's a booking intent, also show payment
-        if detect_booking_intent(user_message, chat_history):
-            payment_url = Payment(user_name = "Guest", email = user_email, room_type = name, checkin = checkin, checkout = checkout, number_of_guests = 2, amountInCents=int(amount * 100 * Days))
+        if booking_intent_detected:
+            payment_url = Payment(
+                user_name="Guest",
+                email=user_email,
+                room_type=name,
+                checkin=checkin,
+                checkout=checkout,
+                number_of_guests=2,
+                amountInCents=int(amount * 100 * Days)
+            )
             suggestions = (
                 f"{info_text}\n\n"
                 f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
             )
-            chat_history.append(f"Bot: Sent payment link")
-            return f"🧾 Great! Here's your payment link:\n{payment_url}"
+        else:
+            suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
+
 
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
