@@ -58,10 +58,13 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         print("❌ Exception occurred:", e)
         return None
 
-extra_info_map = {
-        str(row["name"]).lower(): row.to_dict()
-        for _, row in pd.read_excel("AnQa.xlsx", engine="openpyxl").iterrows()
-    }
+# Load the Excel once during app start
+excel_data = pd.read_excel("AnQa.xlsx", engine="openpyxl")
+excel_mapping = {
+    str(row["name"]).strip().lower(): row.to_dict()
+    for _, row in excel_data.iterrows()
+}
+
 def extract_dates_from_message(message):
     try:
         print(f"🔍 Parsing dates from message: {message}")  # Debug print
@@ -229,20 +232,21 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
-        extra_info = extra_info_map.get(name.lower())
-        extra_info_text = ""
+        listing_name = matched_listing.get("name", "").strip().lower()
+        extra_info = excel_mapping.get(listing_name)
+
         if extra_info:
-            extra_info_text = "\n\n📎 *Extra Property Info:*"
-            if extra_info.get("state"):
-                extra_info_text += f"\n• State: {extra_info['state']}"
-            if extra_info.get("floor"):
-                extra_info_text += f"\n• Floor: {extra_info['floor']}"
-            if extra_info.get("parking"):
-                extra_info_text += f"\n• Parking: {extra_info['parking']}"
-            if extra_info.get("elevator"):
-                extra_info_text += f"\n• Elevator: {extra_info['elevator']}"
-            if extra_info.get("luggage"):
-                extra_info_text += f"\n• Luggage: {extra_info['luggage']}"
+            # Add more details from Excel if available
+            excel_text = (
+                f"\n🏢 *Floor*: {extra_info.get('Floor', 'N/A')}"
+                f"\n🛏️ *Double Beds*: {extra_info.get('Double Beds #', 'N/A')} | "
+                f"🛌 *Single Beds*: {extra_info.get('Single Beds #', 'N/A')}"
+                f"\n🚗 *Parking*: {extra_info.get('Parking', 'N/A')} | "
+                f"🛗 *Elevator*: {extra_info.get('Elevator', 'N/A')} | "
+                f"🧳 *Luggage*: {extra_info.get('Luggage', 'N/A')}"
+                f"\n📍 *Street Address*: {extra_info.get('Street', 'N/A')}"
+            )
+            response_text += f"\n\n🔎 *More Details from Property Sheet:*\n{excel_text}"
 
         info_text = (
             f"🏠 *{name}* in {city_hint}:\n"
@@ -253,7 +257,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
             f"• 🔗 Link: {url}"
-            f"{extra_info_text}"
+            f"{excel_text}"
             f"📋 House Rules:\n"
                 "• Check-in: 3:00 PM\n"
                 "• Check-out: 12:00 PM\n"
