@@ -58,6 +58,10 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
         print("❌ Exception occurred:", e)
         return None
 
+extra_info_map = {
+        str(row["name"]).lower(): row.to_dict()
+        for _, row in pd.read_excel("AnQa.xlsx", engine="openpyxl").iterrows()
+    }
 def extract_dates_from_message(message):
     try:
         print(f"🔍 Parsing dates from message: {message}")  # Debug print
@@ -207,11 +211,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         None
     )
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
-
-    extra_info_map = {
-        str(row["name"]).lower(): row.to_dict()
-        for _, row in pd.read_excel("AnQa.xlsx").iterrows()
-    }
 
     payment_url = None
     suggestions = ""
