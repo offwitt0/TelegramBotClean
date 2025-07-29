@@ -468,9 +468,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_user_email_mapping(user_id, clean_email)
         
         # Send confirmation and date request
+        await update.message.reply_text(f"✓ Email {clean_email} saved!")
+
         await update.message.reply_text(
-            f"✓ Email {clean_email} saved!\n\n"
-            "📅 Now please provide your travel dates:\n"
+            f"Please provide your travel dates:\n"
             "Examples:\n"
             "• 20-27 September\n"
             "• Sep 20 to 27\n"
