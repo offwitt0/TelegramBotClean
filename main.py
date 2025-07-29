@@ -424,7 +424,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.chat_data.setdefault(key, {})
         context.chat_data[key].pop(user_id, None)
 
-    await update.message.reply_text("🏨 Welcome! Please enter your email to get started.")
+    await update.message.reply_text("🏨 Welcome to AnQa Khans Bot!\nPlease enter your email to get started.")
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
