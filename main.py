@@ -503,14 +503,8 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         
         # Confirm dates and invite questions
-        reply = await update.message.reply_text(
-            f"✅ Got your dates: {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}\n\n"
-            "How can I assist you with your stay? You can ask about:\n"
-            "- Available properties\n"
-            "- Amenities\n"
-            "- Pricing\n"
-            "- Local recommendations"
-        )
+        await update.message.reply_text(f"✅ Got your dates: {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}")
+        reply = await update.message.reply_text(f"How can I assist you with your stay?")
         context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
 
