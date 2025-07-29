@@ -29,11 +29,6 @@ from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # Railway sets this automatically
-engine = create_engine(DATABASE_URL)
-Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine)
-
 class TelegramMessage(Base):
     __tablename__ = "telegram_messages"
     id = Column(Integer, primary_key=True, index=True)
@@ -117,7 +112,12 @@ EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("RAILWAY_DATABASE_URL")
+if not DATABASE_URL:
+    raise Exception("❌ DATABASE_URL not set. Please add it to your Railway environment variables.")
+engine = create_engine(DATABASE_URL)
+Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine)
 IMAP_SERVER = "imap.gmail.com"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
