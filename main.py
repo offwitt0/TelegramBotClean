@@ -29,6 +29,21 @@ from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+load_dotenv()
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("RAILWAY_DATABASE_URL")
+if not DATABASE_URL:
+    raise Exception("❌ DATABASE_URL not set. Please add it to your Railway environment variables.")
+engine = create_engine(DATABASE_URL)
+Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine)
+IMAP_SERVER = "imap.gmail.com"
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+
 class TelegramMessage(Base):
     __tablename__ = "telegram_messages"
     id = Column(Integer, primary_key=True, index=True)
@@ -36,8 +51,6 @@ class TelegramMessage(Base):
     role = Column(String)
     content = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
-
-Base.metadata.create_all(bind=engine)
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -107,21 +120,6 @@ def extract_dates_from_message(message):
     return None, None
 
 # ================== ENV & CONFIG ==================
-load_dotenv()
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("RAILWAY_DATABASE_URL")
-if not DATABASE_URL:
-    raise Exception("❌ DATABASE_URL not set. Please add it to your Railway environment variables.")
-engine = create_engine(DATABASE_URL)
-Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine)
-IMAP_SERVER = "imap.gmail.com"
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 def load_email_history(email_address):
