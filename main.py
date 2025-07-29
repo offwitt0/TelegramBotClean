@@ -24,33 +24,6 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
-# Database
-from sqlalchemy import create_engine, Column, String, Integer, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
-load_dotenv()
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("RAILWAY_DATABASE_URL")
-if not DATABASE_URL:
-    raise Exception("❌ DATABASE_URL not set. Please add it to your Railway environment variables.")
-engine = create_engine(DATABASE_URL)
-Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine)
-IMAP_SERVER = "imap.gmail.com"
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-
-class TelegramMessage(Base):
-    __tablename__ = "telegram_messages"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, index=True)
-    role = Column(String)
-    content = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -120,6 +93,16 @@ def extract_dates_from_message(message):
     return None, None
 
 # ================== ENV & CONFIG ==================
+load_dotenv()
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+IMAP_SERVER = "imap.gmail.com"
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 def load_email_history(email_address):
@@ -418,19 +401,6 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
-def load_telegram_history():
-    try:
-        with open("telegram_history.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-def save_telegram_history(user_id, role, content):
-    session = SessionLocal()
-    message = TelegramMessage(user_id=str(user_id), role=role, content=content)
-    session.add(message)
-    session.commit()
-    session.close()
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -547,9 +517,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["chat_history"].setdefault(user_id, []).append(
         {"role": "user", "content": user_message}
     )
-    # Persist user message
-    save_telegram_history(user_id, context.chat_data["chat_history"][user_id])
-
+    
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, 
         action="typing"
@@ -569,13 +537,9 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
-
         context.chat_data["chat_history"][user_id].append(
             {"role": "assistant", "content": reply_text}
         )
-        # Persist assistant reply
-        save_telegram_history(user_id, context.chat_data["chat_history"][user_id])
-
     except Exception as e:
         err = await update.message.reply_text("❌ Sorry, I encountered an error. Please try again.")
         context.chat_data["all_messages"][user_id].append(err.message_id)
