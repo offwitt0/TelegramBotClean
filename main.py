@@ -24,6 +24,25 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
+# Database
+from sqlalchemy import create_engine, Column, String, Integer, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+DATABASE_URL = os.getenv("DATABASE_URL")  # Railway sets this automatically
+engine = create_engine(DATABASE_URL)
+Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine)
+
+class TelegramMessage(Base):
+    __tablename__ = "telegram_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)
+    role = Column(String)
+    content = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+Base.metadata.create_all(bind=engine)
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -408,11 +427,12 @@ def load_telegram_history():
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
-def save_telegram_history(user_id, history):
-    all_histories = load_telegram_history()
-    all_histories[str(user_id)] = history
-    with open("telegram_history.json", "w", encoding="utf-8") as f:
-        json.dump(all_histories, f, indent=2, ensure_ascii=False)
+def save_telegram_history(user_id, role, content):
+    session = SessionLocal()
+    message = TelegramMessage(user_id=str(user_id), role=role, content=content)
+    session.add(message)
+    session.commit()
+    session.close()
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
