@@ -401,6 +401,18 @@ def save_user_email_mapping(user_id: str, email_address: str):
     with open(mapping_path, "w") as f:
         json.dump(mapping, f, indent=2)
 
+def load_telegram_history():
+    try:
+        with open("telegram_history.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save_telegram_history(user_id, history):
+    all_histories = load_telegram_history()
+    all_histories[str(user_id)] = history
+    with open("telegram_history.json", "w", encoding="utf-8") as f:
+        json.dump(all_histories, f, indent=2, ensure_ascii=False)
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -517,7 +529,9 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["chat_history"].setdefault(user_id, []).append(
         {"role": "user", "content": user_message}
     )
-    
+    # Persist user message
+    save_telegram_history(user_id, context.chat_data["chat_history"][user_id])
+
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, 
         action="typing"
@@ -537,9 +551,13 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
+
         context.chat_data["chat_history"][user_id].append(
             {"role": "assistant", "content": reply_text}
         )
+        # Persist assistant reply
+        save_telegram_history(user_id, context.chat_data["chat_history"][user_id])
+
     except Exception as e:
         err = await update.message.reply_text("❌ Sorry, I encountered an error. Please try again.")
         context.chat_data["all_messages"][user_id].append(err.message_id)
