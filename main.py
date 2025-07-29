@@ -152,9 +152,6 @@ def get_prompt(payment_url=None):
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
     Only ignore a question if it's completely unrelated to travel.
     Use the internal knowledge base provided to answer questions clearly and accurately.
-    If the user provides travel dates in any format, convert and return:
-    - check-in in this format: "Check-in: DD Month YYYY"
-    - check-out in this format: "Check-out: DD Month YYYY"
     """
     if payment_url:
         base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
@@ -264,6 +261,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         # If it's a booking intent, also show payment
         if booking_intent_detected:
+
             payment_url = Payment(
                 user_name="Guest",
                 email=user_email,
@@ -273,6 +271,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
                 number_of_guests=2,
                 amountInCents=int(amount * 100 * Days)
             )
+        
             suggestions = (
                 f"{info_text}\n\n"
                 f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
@@ -284,30 +283,32 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
-        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name, or number of guests."
+        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name"
 
     chat_history = ""
     if history:
-        for turn in history[-6:]:
+        for turn in history[:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
     # Prepare explicit instructions for GPT to avoid redundant questions
     booking_context = ""
-    if booking_intent_detected and matched_listing and checkin and checkout:
+    if booking_intent_detected and matched_listing:
         booking_context = (
             f"\nUser has requested to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
             f"A payment link has already been generated. Do not ask for dates again."
         )
 
-    system_message = f"""{get_prompt(payment_url)}
-    {booking_context}
-    Previous conversation:
-    {chat_history}
+    system_message = f"""
+        {get_prompt(payment_url)}
+        {booking_context}
+        Previous conversation:
+        {chat_history}
 
-    Knowledge base:
-    {kb_context}
-    {suggestions}
-    """
+        Knowledge base:
+        {kb_context}
+        {suggestions}
+
+        """
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -405,11 +406,6 @@ def save_user_email_mapping(user_id: str, email_address: str):
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     
-    # Clear all user-specific data
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
-        if key in context.chat_data:
-            context.chat_data[key].pop(user_id, None)
-    
     # Send confirmation message
     await update.message.reply_text(
         "🔄 Conversation reset successfully!\n\n"
@@ -459,7 +455,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not is_valid_email(clean_email):
             await update.message.reply_text(
                 "❌ Invalid email format. Please try again.\n"
-                "Example: yourname@gmail.com"
             )
             return
         
@@ -468,16 +463,16 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_user_email_mapping(user_id, clean_email)
         
         # Send confirmation and date request
-        await update.message.reply_text(f"✓ Email {clean_email} saved!")
+        await update.message.reply_text(f"✅ Email {clean_email} saved!")
 
         await update.message.reply_text(
-            f"Please provide your travel dates:\n"
+            f"Please provide your travel dates\n"
             "Examples:\n"
             "• 20-27 September\n"
             "• Sep 20 to 27\n"
             "• 20/09 to 27/09"
         )
-        return  # Exit after email handling
+        return  
 
     # STEP 2: Date collection
     if user_id not in context.chat_data["checkin_dates"]:
@@ -538,7 +533,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         err = await update.message.reply_text("❌ Sorry, I encountered an error. Please try again.")
         context.chat_data["all_messages"][user_id].append(err.message_id)
-        logging.error(f"Error in normal conversation: {e}")
+        logging.exception("Error in normal conversation")
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
