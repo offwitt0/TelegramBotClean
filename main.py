@@ -18,6 +18,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -550,22 +553,33 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 app.add_handler(CommandHandler("reset", reset))
 
 # ================== FASTAPI ==================
-fastapi_app = FastAPI()
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
-@fastapi_app.on_event("startup")
-async def start_all():
+app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
     print("📧 Email listener running...")
-    asyncio.create_task(check_email_loop())
+    email_task = asyncio.create_task(check_email_loop())
 
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
-    asyncio.create_task(app.updater.start_polling())
 
-@fastapi_app.on_event("shutdown")
-async def shutdown_all():
+    yield  # App is running
+
     print("⛔ Shutting down bot...")
     await app.stop()
+    email_task.cancel()
+    try:
+        await email_task
+    except asyncio.CancelledError:
+        print("Email loop cancelled.")
+
+fastapi_app = FastAPI(lifespan=lifespan)
 
 fastapi_app.add_middleware(
     CORSMiddleware,
