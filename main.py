@@ -298,7 +298,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         )
 
     system_message = f"""
-        {get_prompt(payment_url)}
+        {get_prompt}
         {booking_context}
         Previous conversation:
         {chat_history}
@@ -450,7 +450,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not is_valid_email(clean_email):
             await update.message.reply_text(
-                "❌ Invalid email format. Please try again.\n"
+                "Please Enter Your Email First"
             )
             return
         
