@@ -274,7 +274,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         
             suggestions = (
                 f"{info_text}\n\n"
-                f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
+                f"🧾 To book this place, complete payment here:\n"
+                f"🔗 [Click here to complete your booking]({payment_url})"
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
@@ -320,9 +321,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         temperature=0.7
     )
     response_text = response.choices[0].message.content.strip()
-    # 🔒 Ensure payment URL is included even if LLM doesn't mention it
-    if payment_url and payment_url not in response_text:
-        response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
     return response_text
 
 # ================== EMAIL ==================
