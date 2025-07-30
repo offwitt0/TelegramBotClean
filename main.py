@@ -146,14 +146,12 @@ excel_mapping = {
 #         f"&children={children}&infants={infants}&pets={pets}"
 #     )
 
-def get_prompt():
-    base = """
+base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
     Only ignore a question if it's completely unrelated to travel.
     Use the internal knowledge base provided to answer questions clearly and accurately.
     """
-    return base
 
 def find_matching_listings(query, guests=2):
     query_clean = query.lower().translate(str.maketrans('', '', string.punctuation))
@@ -272,7 +270,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         
             suggestions = (
                 f"{info_text}\n\n"
-                f"🧾 To book this place, <a href=\"{payment_url}\">click here to complete your booking</a>."
+                f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
@@ -297,7 +295,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         )
 
     system_message = f"""
-        {get_prompt}
+        {base}
         {booking_context}
         Previous conversation:
         {chat_history}
@@ -318,6 +316,9 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         temperature=0.7
     )
     response_text = response.choices[0].message.content.strip()
+    # 🔒 Ensure payment URL is included even if LLM doesn't mention it
+    if payment_url and payment_url not in response_text:
+        response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
     return response_text
 
 # ================== EMAIL ==================
@@ -449,7 +450,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not is_valid_email(clean_email):
             await update.message.reply_text(
-                "Please Enter Your Email First"
+                "❌ Invalid email format. Please try again.\n"
             )
             return
         
