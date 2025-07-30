@@ -146,15 +146,13 @@ excel_mapping = {
 #         f"&children={children}&infants={infants}&pets={pets}"
 #     )
 
-def get_prompt(payment_url=None):
+def get_prompt():
     base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
     Only ignore a question if it's completely unrelated to travel.
     Use the internal knowledge base provided to answer questions clearly and accurately.
     """
-    if payment_url:
-        base += f"\n\nIf the user/client wants to book the room or finalize the payment, give them this exact URL without modifying it:\n{payment_url}"
     return base
 
 def find_matching_listings(query, guests=2):
