@@ -272,8 +272,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         
             suggestions = (
                 f"{info_text}\n\n"
-                f"🧾 To book this place, complete payment here:\n"
-                f"🔗 [Click here to complete your booking]({payment_url})"
+                f"🧾 To book this place, <a href=\"{payment_url}\">click here to complete your booking</a>."
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
