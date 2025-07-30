@@ -270,7 +270,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         
             suggestions = (
                 f"{info_text}\n\n"
-                f"🧾 To book this place, complete payment here:\n{payment_url}\n\n"
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
@@ -450,7 +449,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not is_valid_email(clean_email):
             await update.message.reply_text(
-                "❌ Invalid email format. Please try again.\n"
+                "Please enter your email first"
             )
             return
         
