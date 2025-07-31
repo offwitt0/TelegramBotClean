@@ -1,0 +1,311 @@
+[33mcommit 1bb0245cb67635edc7f586a5bd2ec8ee91c3c406[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Thu Jul 31 12:52:10 2025 +0300
+
+    Save current changes before reverting
+
+[33mcommit d473c7fe9560e47c1c57cd75be63903d2574e0e0[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Thu Jul 31 12:44:01 2025 +0300
+
+    Context
+
+[33mcommit 2e2eccecb3d3213f80b3b7e4f6bbc267f2f998a1[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Thu Jul 31 12:27:19 2025 +0300
+
+    Context
+
+[33mcommit 65544ac25d9629c825545aa5bfbe8ab93e8aee38[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Thu Jul 31 12:20:05 2025 +0300
+
+    Context
+
+[33mcommit c068d0a8318f31dcc5d4597e77c654eba21ffa5f[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 12:25:30 2025 +0300
+
+    Payment edit
+
+[33mcommit b5a767d8141c006cc818a40922c4e25ad07283bb[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 12:18:56 2025 +0300
+
+    Payment edit
+
+[33mcommit e5cf8828d6bbdd3cbcb719639c1dde8529aced57[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 12:11:27 2025 +0300
+
+    Payment edit
+
+[33mcommit b87455476f59f313b08c275043c385c13f31cfe6[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 11:55:35 2025 +0300
+
+    Payment edit
+
+[33mcommit 24ad75d0ce36e2592b1138e39cc6630dbbfdefc0[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 11:43:48 2025 +0300
+
+    history
+
+[33mcommit 610019bc97f474ada6f1d826d5957e6918e95d14[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Wed Jul 30 11:31:43 2025 +0300
+
+    Payment duplication
+
+[33mcommit 50feab968774e4314b328af7a5b3c4cbc0d4f912[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 23:19:45 2025 +0300
+
+    history
+
+[33mcommit ff380290f020398022d6d67ccbdc8301e4907feb[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 20:06:06 2025 +0300
+
+    show
+
+[33mcommit 787fcab8572342afbff54f7da74065fcdb45c259[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 20:02:16 2025 +0300
+
+    show
+
+[33mcommit e6edac8427063e27957d42397f599ccbe7b9fbe4[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 19:56:02 2025 +0300
+
+    show
+
+[33mcommit 4f3281be5486c1ac136873852b1626528a352da4[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 19:39:32 2025 +0300
+
+    show
+
+[33mcommit f1803dd8b0e9dca38db4779ecb6ebc3917bea311[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 19:34:18 2025 +0300
+
+    show
+
+[33mcommit f863fde3d6f577420be79e54706d69f9d24f2a73[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 19:02:12 2025 +0300
+
+    show
+
+[33mcommit 56c043b9adc02c2fe363029b900731f4234fdbe9[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 18:58:43 2025 +0300
+
+    History 4
+
+[33mcommit 89bec5822b4a9b481300121f6529a705415355a5[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 18:52:03 2025 +0300
+
+    History 3
+
+[33mcommit 34762bd10ea0ef8be1adf6add82bd40e8608dae5[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 18:38:25 2025 +0300
+
+    History 2
+
+[33mcommit 63e0337699bfb38d1c36003c1b314b38b4dce7fa[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Tue Jul 29 18:18:21 2025 +0300
+
+    History 1
+
+[33mcommit 8c5a255a7d53abbb0f604bcaa54b89871f26cf7a[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 16:46:28 2025 +0300
+
+    Show
+
+[33mcommit ae3b433682a6baec1b026de21eb4cdfad93a1200[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 16:26:46 2025 +0300
+
+    Show
+
+[33mcommit 67fac5b743044114737e98877607e3bed8ceacb6[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 16:22:05 2025 +0300
+
+    Payment int 1
+
+[33mcommit 88553cac77b306b5cf4298fdbb8f1a27de27d2e1[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 16:17:10 2025 +0300
+
+    Payment int
+
+[33mcommit 7411b3a38085cba3fac5bb8e740e3644e9c6451c[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 15:35:39 2025 +0300
+
+    Edit show 14
+
+[33mcommit 3051a095c9bc246b570cb5d132b7bc59f905d627[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 15:16:35 2025 +0300
+
+    Edit show 13
+
+[33mcommit 6c258fa9ee9e9e9608492ef1fbdb741a79a5f4e1[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 14:54:35 2025 +0300
+
+    Edit show 12
+
+[33mcommit 7218564883f38bbb76b9da9397bda2413b2b32fd[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 14:49:42 2025 +0300
+
+    Edit show 11
+
+[33mcommit 2e8cb6816a30f6f1fb5f4206d313d7d702cbf902[m
+Merge: 724a6f2 3731060
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 14:44:29 2025 +0300
+
+    Edit show 10
+
+[33mcommit 724a6f2676b193576aa1f19dbd20e31e4a6e07d9[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 14:43:10 2025 +0300
+
+    Edit show 10
+
+[33mcommit 37310605a1dc802ab04d4a4ae7e490d5dee336f9[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 12:12:32 2025 +0100
+
+    Your message
+
+[33mcommit db32a26d7020da5d9f34b300d970fffa5f42fc26[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:56:20 2025 +0100
+
+    Your message
+
+[33mcommit c5c3861676a3cb1f56f86c8a0717ba9bab6b4148[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 13:41:55 2025 +0300
+
+    Edit show 9
+
+[33mcommit 44ebe7e13d5558566276f86df2b146ecd2442afb[m
+Merge: 07229e1 1a90299
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 13:41:31 2025 +0300
+
+    Edit show 8
+
+[33mcommit 07229e1b920f90088f4e22edd1402a6467239e58[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 13:39:51 2025 +0300
+
+    Edit show 8
+
+[33mcommit 1a9029956052d5443559359f56602fe9fd273496[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:31:24 2025 +0100
+
+    Your message
+
+[33mcommit 8381ddee18feac10494ae16a34395ef028c67d7f[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:30:25 2025 +0100
+
+    Your message
+
+[33mcommit d098f50e3492f64ae18e0ff068f0d4a50cdd9128[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:23:41 2025 +0100
+
+    Your message
+
+[33mcommit d275285c5cdd5c40a722bc53d0727b3763c22e02[m
+Merge: 5462a6d aa77596
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 13:19:55 2025 +0300
+
+    Edit show 7
+
+[33mcommit 2a073f516f8c65e750358e5e03e0ea2288da8ace[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:14:58 2025 +0100
+
+    Your message
+
+[33mcommit efd1387bf8daec2c32f26c76be5bfdcea0845b56[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:09:05 2025 +0100
+
+    Your message
+
+[33mcommit d2f3600dfae88c3202c8df944fb03491a9a39d5e[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:07:49 2025 +0100
+
+    Your message
+
+[33mcommit 927106f5d39353df56e3406e60440a18f0e3fae0[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 11:00:49 2025 +0100
+
+    Your message
+
+[33mcommit ce3f041a3580b94232e64bc0dc0fcca56689d5ef[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 10:45:53 2025 +0100
+
+    Your message
+
+[33mcommit aa77596e9e5febb526cfe736b091081c92b89cc0[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 10:35:04 2025 +0100
+
+    Your message
+
+[33mcommit 5462a6db1fddb60c8999f075eb97dfc62026fe43[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 12:19:27 2025 +0300
+
+    Edit show 6
+
+[33mcommit e13e601e5bcc10ea044a5c67e01fdf6776cf99c6[m
+Author: tonaja <tonaja.mohamed@gmail.com>
+Date:   Mon Jul 28 10:10:17 2025 +0100
+
+    Your message
+
+[33mcommit 18851b84693e7e1dfe504f6e0ca6407c44df08d1[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 12:02:44 2025 +0300
+
+    Edit show 5
+
+[33mcommit cb04fed85d29e3bbc721c637837577ea396834c1[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 11:59:21 2025 +0300
+
+    Edit show 4
+
+[33mcommit 435ad186fb07a54891f086f4ee0dc8af41565f72[m
+Author: Mohamed Hamdi <offwitt0@gmail.com>
+Date:   Mon Jul 28 11:47:55 2025 +0300
+
+    Edit show 3
+
+[33mcommit b9ad7b875ff5df3276920e21986f07e40ba28661[m
+Author: Mohamed Hamdi <offwi
