@@ -421,78 +421,101 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
     user_message = update.message.text
     user_id = str(update.effective_user.id)
-
-    # Initialize tracking keys
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_shown_listings"]:
+    # Initialize chat_data keys safely if missing
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
         if key not in context.chat_data:
             context.chat_data[key] = {}
 
-    # Update user activity and messages
     context.chat_data["last_active"][user_id] = now
     context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
 
-    # === STEP 1: EMAIL ===
+    print(f"\n=== DEBUG: Current State ===")
+    print(f"User ID: {user_id}")
+    print(f"Has Email: {user_id in context.chat_data['user_email']}")
+    print(f"Has Dates: {user_id in context.chat_data['checkin_dates']}")
+    print(f"Last Msg: {user_message[:50]}...")
+
+    # Initialize chat data structures
+    # for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    #     context.chat_data.setdefault(key, {})
+
+    # Inactivity check (existing code remains the same)
+    
+    # Update activity tracking
+    # context.chat_data["last_active"][user_id] = now
+    # context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
+    
+    print(f"💬 Message from {user_id}: {user_message}")
+
+    # STEP 1: Email collection
     if user_id not in context.chat_data["user_email"]:
-        email_text = user_message.strip().lower()
-        if not is_valid_email(email_text):
-            await update.message.reply_text("❌ Invalid email format. Please try again.\nExample: yourname@gmail.com")
+        clean_email = user_message.strip().lower()
+        
+        if not is_valid_email(clean_email):
+            await update.message.reply_text(
+                "Please enter your email first"
+            )
             return
+        
+        # Save email and confirm
+        context.chat_data["user_email"][user_id] = clean_email
+        save_user_email_mapping(user_id, clean_email)
+        
+        # Send confirmation and date request
+        await update.message.reply_text(f"✅ Email {clean_email} saved!")
 
-        context.chat_data["user_email"][user_id] = email_text
-        save_user_email_mapping(user_id, email_text)
+        await update.message.reply_text(
+            f"Please provide your travel dates\n"
+            "Examples:\n"
+            "• 20-27 September\n"
+            "• Sep 20 to 27\n"
+            "• 20/09 to 27/09"
+        )
+        return  
 
-        await update.message.reply_text(f"✓ Email {email_text} saved!\n\n📅 Now please provide your travel dates:\nExamples:\n• 20-27 August\n• Aug 20 to 27")
-        return
-
-    # === STEP 2: TRAVEL DATES ===
+    # STEP 2: Date collection
     if user_id not in context.chat_data["checkin_dates"]:
+        # First try direct extraction
         checkin, checkout = extract_dates_from_message(user_message)
+        
         if not checkin or not checkout:
-            await update.message.reply_text("📅 Please enter your travel dates (check-in and check-out).\nExamples:\n• 20 to 25 August\n• 20/08 to 25/08")
+            # If no dates found, ask clearly for them
+            reply = await update.message.reply_text(
+                "📆 To help you best, I need your travel dates.\n\n"
+                "Please specify your check-in and check-out dates like:\n"
+                "- '20 to 23 August'\n"
+                "- 'August 20-23'\n"
+                "- 'from 20/08 to 23/08'"
+            )
+            context.chat_data["all_messages"][user_id].append(reply.message_id)
             return
-
-        context.chat_data["checkin_dates"][user_id] = {"checkin": checkin, "checkout": checkout}
-        await update.message.reply_text(f"✅ Dates saved: {checkin.strftime('%d %b')} to {checkout.strftime('%d %b')}\n\nHow can I help you next?")
+        
+        # Save valid dates
+        context.chat_data["checkin_dates"][user_id] = {
+            "checkin": checkin,
+            "checkout": checkout
+        }
+        
+        # Confirm dates and invite questions
+        await update.message.reply_text(f"✅ Got your dates: {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}")
+        reply = await update.message.reply_text(f"How can I assist you with your stay?")
+        context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
 
-    # === STEP 3: NORMAL CHAT ===
-    checkin = context.chat_data["checkin_dates"][user_id]["checkin"]
-    checkout = context.chat_data["checkin_dates"][user_id]["checkout"]
-
-    # STEP 3A: Store listings for reference
-    matched_listings = find_matching_listings(user_message)
-    if matched_listings:
-        context.chat_data["last_shown_listings"][user_id] = matched_listings
-
-    # STEP 3B: Check for ordinal references
-    ordinal_words = {
-        "first": 0, "1st": 0, "one": 0, "1": 0,
-        "second": 1, "2nd": 1, "two": 1, "2": 1,
-        "third": 2, "3rd": 2, "three": 2, "3": 2,
-        "fourth": 3, "4th": 3, "four": 3, "4": 3,
-        "fifth": 4, "5th": 4, "five": 4, "5": 4,
-    }
-    selected_index = None
-    for word in user_message.lower().split():
-        if word in ordinal_words:
-            selected_index = ordinal_words[word]
-            break
-
-    # If user said "second option", replace message with listing name
-    if selected_index is not None and user_id in context.chat_data["last_shown_listings"]:
-        selected_listings = context.chat_data["last_shown_listings"][user_id]
-        if selected_index < len(selected_listings):
-            selected_url = selected_listings[selected_index].split("\n")[-1].strip()
-            matched = next((l for l in listings_data if l.get("url") == selected_url), None)
-            if matched:
-                user_message = matched["name"]
-
-    # Save to chat history
-    context.chat_data["chat_history"].setdefault(user_id, []).append({"role": "user", "content": user_message})
-
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    # STEP 3: Normal conversation
+    context.chat_data["chat_history"].setdefault(user_id, []).append(
+        {"role": "user", "content": user_message}
+    )
+    
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
 
     try:
+        checkin = context.chat_data["checkin_dates"][user_id]["checkin"]
+        checkout = context.chat_data["checkin_dates"][user_id]["checkout"]
+        
         reply_text = generate_response(
             user_message,
             sender_id=context.chat_data["user_email"][user_id],
@@ -501,13 +524,15 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checkout=checkout
         )
 
-        reply = await update.message.reply_text(reply_text)
-        context.chat_data["all_messages"][user_id].append(reply.message_id)
-        context.chat_data["chat_history"][user_id].append({"role": "assistant", "content": reply_text})
+        reply_msg = await update.message.reply_text(reply_text)
+        context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
+        context.chat_data["chat_history"][user_id].append(
+            {"role": "assistant", "content": reply_text}
+        )
     except Exception as e:
-        logging.exception("Error in handle()")
-        await update.message.reply_text("❌ Sorry, something went wrong. Please try again.")
-
+        err = await update.message.reply_text("❌ Sorry, I encountered an error. Please try again.")
+        context.chat_data["all_messages"][user_id].append(err.message_id)
+        logging.exception("Error in normal conversation")
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
