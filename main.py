@@ -290,7 +290,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         booking_context = (
             f"\nUser has requested to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
-            f"A payment link has already been generated. Do not ask for dates again."
         )
 
     system_message = f"""
@@ -378,7 +377,7 @@ async def check_email_loop():
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 def is_valid_email(email_str: str) -> bool:
-    return re.match(r"[^@]+@[^@]+\.[^@]+", email_str) is not None
+    return re.fullmatch(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", email_str) is not None
 
 def save_user_email_mapping(user_id: str, email_address: str):
     mapping_path = "user_mapping.json"
