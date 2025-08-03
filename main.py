@@ -9,6 +9,7 @@ import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 import sys
+openai_client = OpenAI()  # Or however you're initializing your client
 sys.stdout.reconfigure(encoding='utf-8')
 import calendar
 from fastapi import FastAPI
@@ -189,8 +190,21 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     listings = find_matching_listings(user_message, guests=2)
-    booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
-    booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
+    def detect_booking_intent(user_message: str) -> bool:
+        prompt = f"""
+    You are an AI assistant. Determine if the user is expressing intent to book a stay.
+    Respond with only "yes" or "no".
+
+    User message: "{user_message}"
+    """
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "system", "content": prompt}],
+            max_tokens=1,
+            temperature=0
+        )
+        answer = response.choices[0].message.content.strip().lower()
+        return answer == "yes"
 
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
@@ -201,6 +215,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         from telegram.ext import ChatData  # optional, just clarifies context
         chat_data = app.chat_data
         matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
+    if not matched_listing and sender_id and "@" not in sender_id:
+        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+    booking_intent_detected = detect_booking_intent(user_message)
 
     # Handle vague references if booking intent and no match
     if not matched_listing and booking_intent_detected and history:
