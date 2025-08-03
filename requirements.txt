@@ -82,3 +82,5 @@ zstandard==0.23.0
 pandas==2.2.2
 openpyxl
 httpx
+spacy
+coreferee

@@ -8,10 +8,8 @@ import email
 import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
-from urllib.parse import quote
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-import dateutil.parser
 import calendar
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +22,23 @@ from langchain_community.vectorstores import FAISS
 from openai import OpenAI
 import requests
 import string
+
+import spacy
+import coreferee
+
+nlp = spacy.load("en_core_web_trf")
+nlp.add_pipe("coreferee")
+
+def resolve_coreferences(message, history):
+    try:
+        context = " ".join([f"{t['role']}: {t['content']}" for t in history[-4:]])
+        doc = nlp(context + " " + message)
+        resolved = doc._.coref_resolved
+        return resolved if resolved else message
+    except Exception as e:
+        print("❌ Coreferee error:", e)
+        return message
+
 
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
@@ -138,14 +153,6 @@ excel_mapping = {
     if str(row.get("name", "")).strip()  # ensure it's not empty
 }
 
-# def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
-#     area_encoded = quote(area)
-#     return (
-#         f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-#         f"?checkin={checkin}&checkout={checkout}&adults={adults}"
-#         f"&children={children}&infants={infants}&pets={pets}"
-#     )
-
 base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
@@ -206,6 +213,23 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
+    # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
+    if not matched_listing and sender_id and "@" not in sender_id:
+        from telegram.ext import ChatData  # optional, just clarifies context
+        chat_data = app.chat_data
+        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+
+    # Handle vague references if booking intent and no match
+    if not matched_listing and booking_intent_detected and history:
+        # Try to find most recent listing mentioned by assistant
+        for turn in reversed(history):
+            if turn["role"] == "assistant" and "🏠 *" in turn["content"]:
+                for listing in listings_data:
+                    if listing["name"] in turn["content"]:
+                        matched_listing = listing
+                        break
+            if matched_listing:
+                break
 
     extra_excel_info = None
     if matched_listing:
@@ -410,7 +434,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
 
     # Safely reset this user's data only
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         context.chat_data.setdefault(key, {})
         context.chat_data[key].pop(user_id, None)
 
@@ -418,7 +442,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
-    user_message = update.message.text
+    raw_message = update.message.text
+    user_message = resolve_coreferences(raw_message, context.chat_data["chat_history"][user_id])
     user_id = str(update.effective_user.id)
     # Initialize chat_data keys safely if missing
     for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
@@ -448,7 +473,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not is_valid_email(clean_email):
             await update.message.reply_text(
-                "Please enter your email first"
+                "Please enter your email only"
             )
             return
         
@@ -518,6 +543,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checkin=checkin,
             checkout=checkout
         )
+
+        # 🔁 Attempt to extract last referenced listing name from reply
+        for listing in listings_data:
+            if listing["name"] in reply_text:
+                context.chat_data["last_referenced_listing"][user_id] = listing
+                break
 
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
