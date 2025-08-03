@@ -23,22 +23,6 @@ from openai import OpenAI
 import requests
 import string
 
-import spacy
-
-nlp = spacy.load("en_core_web_trf")
-nlp.add_pipe("coreferee")
-
-def resolve_coreferences(message, history):
-    try:
-        context = " ".join([f"{t['role']}: {t['content']}" for t in history[-4:]])
-        doc = nlp(context + " " + message)
-        resolved = doc._.coref_resolved
-        return resolved if resolved else message
-    except Exception as e:
-        print("❌ Coreferee error:", e)
-        return message
-
-
 # Payment
 def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, amountInCents):
     url = "https://subscriptionsmanagement-dev.fastautomate.com/api/Payments/reservation"
@@ -313,6 +297,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         booking_context = (
             f"\nUser has requested to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
+            f"\nUser said something like 'book it' but the listing name was unclear. "
+            f"Use the last shown property in the chat history to infer it."
         )
 
     system_message = f"""
@@ -441,8 +427,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
-    raw_message = update.message.text
-    user_message = resolve_coreferences(raw_message, context.chat_data["chat_history"][user_id])
+    user_message = update.message.text
     user_id = str(update.effective_user.id)
     # Initialize chat_data keys safely if missing
     for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
