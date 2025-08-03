@@ -9,7 +9,6 @@ import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 import sys
-openai_client = OpenAI()  # Or however you're initializing your client
 sys.stdout.reconfigure(encoding='utf-8')
 import calendar
 from fastapi import FastAPI
@@ -197,7 +196,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     User message: "{user_message}"
     """
-        response = openai_client.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "system", "content": prompt}],
             max_tokens=1,
