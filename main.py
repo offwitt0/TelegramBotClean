@@ -191,19 +191,26 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     listings = find_matching_listings(user_message, guests=2)
     def detect_booking_intent(user_message: str) -> bool:
         prompt = f"""
-    You are an AI assistant. Determine if the user is expressing intent to book a stay.
-    Respond with only "yes" or "no".
+                    You are an AI assistant. Determine if the user is expressing intent to book a stay.
+                    Respond with only "yes" or "no".
 
-    User message: "{user_message}"
-    """
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": prompt}],
-            max_tokens=1,
-            temperature=0
-        )
-        answer = response.choices[0].message.content.strip().lower()
-        return answer == "yes"
+                    User message: "{user_message}"
+                    """
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "Answer only with 'yes' or 'no'."},
+                    {"role": "user", "content": prompt.strip()}
+                ],
+                max_tokens=1,
+                temperature=0
+            )
+            answer = response['choices'][0]['message']['content'].strip().lower()
+            return answer == "yes"
+        except Exception as e:
+            print(f"[ERROR] Booking intent detection failed: {e}")
+            return False
 
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
