@@ -179,35 +179,27 @@ base = """
     ensure you always know which property is being discussed. 
 
     5. Only ignore a question if it is completely unrelated to travel or bookings. 
-=======
 working for a short-term rental company in Cairo, Egypt.  
 
 Your responsibilities: 
 
-1. Help users with vacation stays, Airbnb-style bookings, property details, and  
-
-   guest policies. 
+1. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
 
 2. Use the internal knowledge base and chat history to answer questions accurately. 
 
 3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
 
-   to a property, infer the most likely property from the chat history and the  
+    to a property, infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
 
-   last referenced property (variable: last_referenced_listing).  
+    - Do NOT ask the user to repeat the property name unless you are absolutely uncertain. 
 
-   - Do NOT ask the user to repeat the property name unless you are  
-
-     absolutely uncertain. 
-
-   - If uncertain, politely confirm the property with the user before proceeding. 
+- If uncertain, politely confirm the property with the user before proceeding. 
 
 4. When displaying listings, update the last_referenced_listing variable to  
 
-   ensure you always know which property is being discussed. 
+ensure you always know which property is being discussed. 
 
 5. Only ignore a question if it is completely unrelated to travel or bookings. 
->>>>>>> 975df2e721b9649571aa1176d892cccffe17c013
     """
 
 def find_matching_listings(query, guests=2):
@@ -260,11 +252,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     def detect_booking_intent_with_gpt(message: str) -> bool:
         system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
         user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
-
-    Message: "{message}"
-
-    Answer with only 'yes' or 'no'."""
-
+            Message: "{message}"
+            Answer with only 'yes' or 'no'."""
         try:
             result = chatgpt_call(
                 system_prompt=system_prompt,
@@ -640,7 +629,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 app.add_handler(CommandHandler("reset", reset))
-
 # ================== FASTAPI ==================
 fastapi_app = FastAPI()
 
