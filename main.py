@@ -8,10 +8,8 @@ import email
 import re
 from email.message import EmailMessage
 from datetime import datetime, timedelta
-from urllib.parse import quote
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-import dateutil.parser
 import calendar
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -138,19 +136,48 @@ excel_mapping = {
     if str(row.get("name", "")).strip()  # ensure it's not empty
 }
 
-# def generate_airbnb_link(area, checkin, checkout, adults=2, children=0, infants=0, pets=0):
-#     area_encoded = quote(area)
-#     return (
-#         f"https://www.airbnb.com/s/Cairo--{area_encoded}/homes"
-#         f"?checkin={checkin}&checkout={checkout}&adults={adults}"
-#         f"&children={children}&infants={infants}&pets={pets}"
-#     )
+def chatgpt_call(system_prompt, user_prompt, model="gpt-4o", temperature=0, max_tokens=300):
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    return response.choices[0].message.content.strip()
 
 base = """
-    You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
-    Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
-    Only ignore a question if it's completely unrelated to travel.
-    Use the internal knowledge base provided to answer questions clearly and accurately.
+    You are a professional, friendly, and detail-oriented guest experience assistant  
+
+working for a short-term rental company in Cairo, Egypt.  
+
+Your responsibilities: 
+
+1. Help users with vacation stays, Airbnb-style bookings, property details, and  
+
+   guest policies. 
+
+2. Use the internal knowledge base and chat history to answer questions accurately. 
+
+3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
+
+   to a property, infer the most likely property from the chat history and the  
+
+   last referenced property (variable: last_referenced_listing).  
+
+   - Do NOT ask the user to repeat the property name unless you are  
+
+     absolutely uncertain. 
+
+   - If uncertain, politely confirm the property with the user before proceeding. 
+
+4. When displaying listings, update the last_referenced_listing variable to  
+
+   ensure you always know which property is being discussed. 
+
+5. Only ignore a question if it is completely unrelated to travel or bookings. 
     """
 
 def find_matching_listings(query, guests=2):
@@ -199,13 +226,54 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     listings = find_matching_listings(user_message, guests=2)
-    booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
-    booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
+
+    def detect_booking_intent_with_gpt(message: str) -> bool:
+        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
+        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
+
+    Message: "{message}"
+
+    Answer with only 'yes' or 'no'."""
+
+        try:
+            result = chatgpt_call(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=3,  # very short, to avoid long answers
+                temperature=0
+            )
+            answer = result.strip().lower()
+            return answer == "yes"
+        except Exception as e:
+            print(f"❌ Error detecting booking intent: {e}")
+            return False
+
 
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
+    # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
+    if not matched_listing and sender_id and "@" not in sender_id:
+        from telegram.ext import ChatData  # optional, just clarifies context
+        chat_data = app.chat_data
+        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
+    if not matched_listing and sender_id and "@" not in sender_id:
+        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+    booking_intent_detected = detect_booking_intent_with_gpt(user_message)
+
+    # Handle vague references if booking intent and no match
+    if not matched_listing and booking_intent_detected and history:
+        # Try to find most recent listing mentioned by assistant
+        for turn in reversed(history):
+            if turn["role"] == "assistant" and "🏠 *" in turn["content"]:
+                for listing in listings_data:
+                    if listing["name"] in turn["content"]:
+                        matched_listing = listing
+                        break
+            if matched_listing:
+                break
 
     extra_excel_info = None
     if matched_listing:
@@ -290,7 +358,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         booking_context = (
             f"\nUser has requested to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
+            f"\nUser said something like 'book it' but the listing name was unclear. "
+            f"Use the last shown property in the chat history to infer it."
             f"A payment link has already been generated. Do not ask for dates again."
+            f"If the user says (book it), (I want this one), or similar phrases, assume they mean the last referenced property unless confirmed otherwise. "
         )
 
     system_message = f"""
@@ -378,7 +449,7 @@ async def check_email_loop():
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
 def is_valid_email(email_str: str) -> bool:
-    return re.match(r"[^@]+@[^@]+\.[^@]+", email_str) is not None
+    return re.fullmatch(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", email_str) is not None
 
 def save_user_email_mapping(user_id: str, email_address: str):
     mapping_path = "user_mapping.json"
@@ -411,7 +482,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
 
     # Safely reset this user's data only
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         context.chat_data.setdefault(key, {})
         context.chat_data[key].pop(user_id, None)
 
@@ -425,10 +496,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
         if key not in context.chat_data:
             context.chat_data[key] = {}
-
-    context.chat_data["last_active"][user_id] = now
-    context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
-
     print(f"\n=== DEBUG: Current State ===")
     print(f"User ID: {user_id}")
     print(f"Has Email: {user_id in context.chat_data['user_email']}")
@@ -436,14 +503,14 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Last Msg: {user_message[:50]}...")
 
     # Initialize chat data structures
-    # for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
-    #     context.chat_data.setdefault(key, {})
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+        context.chat_data.setdefault(key, {})
 
     # Inactivity check (existing code remains the same)
     
     # Update activity tracking
-    # context.chat_data["last_active"][user_id] = now
-    # context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
+    context.chat_data["last_active"][user_id] = now
+    context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
     
     print(f"💬 Message from {user_id}: {user_message}")
 
@@ -453,7 +520,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not is_valid_email(clean_email):
             await update.message.reply_text(
-                "Please enter your email first"
+                "Please enter your email only"
             )
             return
         
@@ -523,6 +590,12 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checkin=checkin,
             checkout=checkout
         )
+
+        # 🔁 Attempt to extract last referenced listing name from reply
+        for listing in listings_data:
+            if listing["name"] in reply_text:
+                context.chat_data["last_referenced_listing"][user_id] = listing
+                break
 
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
