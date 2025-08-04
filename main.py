@@ -136,18 +136,6 @@ excel_mapping = {
     if str(row.get("name", "")).strip()  # ensure it's not empty
 }
 
-def chatgpt_call(system_prompt, user_prompt, model="gpt-4o", temperature=0, max_tokens=300):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=temperature,
-        max_tokens=max_tokens
-    )
-    return response.choices[0].message.content.strip()
-
 base = """
     You are a professional, friendly, and detail-oriented guest experience assistant working for a short-term rental company in Cairo, Egypt.
     Always help with questions related to vacation stays, Airbnb-style bookings, and guest policies.
@@ -201,54 +189,13 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
 
     listings = find_matching_listings(user_message, guests=2)
-
-    def detect_booking_intent_with_gpt(message: str) -> bool:
-        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
-        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
-
-    Message: "{message}"
-
-    Answer with only 'yes' or 'no'."""
-
-        try:
-            result = chatgpt_call(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=3,  # very short, to avoid long answers
-                temperature=0
-            )
-            answer = result.strip().lower()
-            return answer == "yes"
-        except Exception as e:
-            print(f"❌ Error detecting booking intent: {e}")
-            return False
-
+    booking_intent_keywords = ["book", "booking", "reserve", "reservation", "interested", "want to stay"]
+    booking_intent_detected = any(kw in user_message.lower() for kw in booking_intent_keywords)
 
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
-    # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
-    if not matched_listing and sender_id and "@" not in sender_id:
-        from telegram.ext import ChatData  # optional, just clarifies context
-        chat_data = app.chat_data
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
-    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
-    if not matched_listing and sender_id and "@" not in sender_id:
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
-    booking_intent_detected = detect_booking_intent_with_gpt(user_message)
-
-    # Handle vague references if booking intent and no match
-    if not matched_listing and booking_intent_detected and history:
-        # Try to find most recent listing mentioned by assistant
-        for turn in reversed(history):
-            if turn["role"] == "assistant" and "🏠 *" in turn["content"]:
-                for listing in listings_data:
-                    if listing["name"] in turn["content"]:
-                        matched_listing = listing
-                        break
-            if matched_listing:
-                break
 
     extra_excel_info = None
     if matched_listing:
@@ -333,8 +280,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         booking_context = (
             f"\nUser has requested to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
-            f"\nUser said something like 'book it' but the listing name was unclear. "
-            f"Use the last shown property in the chat history to infer it."
         )
 
     system_message = f"""
@@ -455,7 +400,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
 
     # Safely reset this user's data only
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
         context.chat_data.setdefault(key, {})
         context.chat_data[key].pop(user_id, None)
 
@@ -563,12 +508,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checkin=checkin,
             checkout=checkout
         )
-
-        # 🔁 Attempt to extract last referenced listing name from reply
-        for listing in listings_data:
-            if listing["name"] in reply_text:
-                context.chat_data["last_referenced_listing"][user_id] = listing
-                break
 
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
