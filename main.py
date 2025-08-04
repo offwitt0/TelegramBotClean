@@ -248,140 +248,106 @@ def detect_booking_intent_with_gpt(message: str) -> bool:
             print(f"❌ Error detecting booking intent: {e}")
             return False
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None, chat_data=None):
-    logging.info(f"Processing message: {user_message} for sender: {sender_id}")
-    
-    # Ensure default dates if not provided
     if not checkin or not checkout:
         today = datetime.today().date()
         checkin = today + timedelta(days=3)
         checkout = today + timedelta(days=6)
     Days = (checkout - checkin).days
-    logging.info(f"Check-in: {checkin}, Check-out: {checkout}, Days: {Days}")
 
-    # Perform similarity search for knowledge base context
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-    logging.info(f"Knowledge base context: {kb_context[:100]}...")
 
-    # Find matching listings
     listings = find_matching_listings(user_message, guests=2)
-    logging.info(f"Found {len(listings)} matching listings")
 
-    # Detect booking intent
-    booking_intent_detected = detect_booking_intent_with_gpt(user_message)
-    logging.info(f"Booking intent detected: {booking_intent_detected}")
+    def detect_booking_intent_with_gpt(message: str) -> bool:
+        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
+        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
+            Message: "{message}"
+            Answer with only 'yes' or 'no'."""
+        try:
+            result = chatgpt_call(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=3,  # very short, to avoid long answers
+                temperature=0
+            )
+            answer = result.strip().lower()
+            return answer == "yes"
+        except Exception as e:
+            print(f"❌ Error detecting booking intent: {e}")
+            return False
 
-    # Resolve the property
-    matched_listing = None
-    if sender_id and "@" not in sender_id:  # Telegram user
+
+    matched_listing = next(
+        (l for l in listings_data if l["name"].lower() in user_message.lower()),
+        None
+    )
+    # 👀 Try to match "second option", "third option", etc.
+    if not matched_listing and sender_id and "@" not in sender_id:
         option_index = extract_option_index(user_message)
         if option_index is not None:
-            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id, [])
-            if option_index < len(recent_listings):
-                matched_name = recent_listings[option_index].split("(⭐")[0].strip()
-                matched_listing = next((l for l in listings_data if l["name"] == matched_name), None)
-                logging.info(f"Matched listing via option index: {matched_listing['name'] if matched_listing else None}")
-        if not matched_listing:
-            matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
-            logging.info(f"Matched listing via last referenced: {matched_listing['name'] if matched_listing else None}")
+            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id)
+            if recent_listings and option_index < len(recent_listings):
+                matched_listing = recent_listings[option_index]
 
-    # Fallback to history for booking intent
+    # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
+    if not matched_listing and sender_id and "@" not in sender_id:
+        if chat_data:
+            matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+
+    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
+    if not matched_listing and sender_id and "@" not in sender_id:
+        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+    booking_intent_detected = detect_booking_intent_with_gpt(user_message)
+
+    # Handle vague references if booking intent and no match
     if not matched_listing and booking_intent_detected and history:
+        # Try to find most recent listing mentioned by assistant
         for turn in reversed(history):
             if turn["role"] == "assistant" and "🏠 *" in turn["content"]:
                 for listing in listings_data:
                     if listing["name"] in turn["content"]:
                         matched_listing = listing
-                        logging.info(f"Matched listing via history: {matched_listing['name']}")
                         break
             if matched_listing:
                 break
 
+    extra_excel_info = None
+    if matched_listing:
+        listing_name_lower = matched_listing['name'].strip().lower()
+        extra_excel_info = excel_mapping.get(listing_name_lower)
+    # Save last suggested listings per sender for coreference resolution
+    if matched_listing:
+        chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
+
+
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+
     payment_url = None
     suggestions = ""
 
-    # Handle booking intent with matched listing
-    if booking_intent_detected and matched_listing:        
-        logging.info(f"Processing booking for {matched_listing['name']}")
+    if matched_listing:
+        # Common listing info
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
-        city_hint = matched_listing.get("city_hint", "Unknown")
+        city_hint = matched_listing.get("city_hint")
         location = matched_listing.get("location", "N/A")
         bedrooms = matched_listing.get("bedrooms", "N/A")
         bathrooms = matched_listing.get("bathrooms", "N/A")
         guests = matched_listing.get("guests", "N/A")
         amenities = matched_listing.get("amenities", [])
         url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
+
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
-        # Generate payment link
-        payment_url = Payment(
-            user_name="Guest",
-            email=user_email,
-            room_type=name,
-            checkin=checkin,
-            checkout=checkout,
-            number_of_guests=2,
-            amountInCents=int(amount * 100 * Days)
-        )
-        logging.info(f"Payment URL: {payment_url}")
+        excel_details = ""
+        if extra_excel_info:
+            for key, value in extra_excel_info.items():
+                if key.lower() not in ['name']:  # skip name as it's already shown
+                    excel_details += f"• {key.title()}: {value}\n"
 
-        # Construct response directly
-        response_text = (
-            f"🏠 Booking confirmation for *{name}* in {city_hint}:\n"
-            f"• 📅 Check-in: {checkin.strftime('%d %b %Y')}\n"
-            f"• 📅 Check-out: {checkout.strftime('%d %b %Y')}\n"
-            f"• 💰 Price per night: {amount} EGP\n"
-            f"• 🛏️ Bedrooms: {bedrooms}\n"
-            f"• 🛁 Bathrooms: {bathrooms}\n"
-            f"• 👥 Accommodates: {guests} guests\n"
-            f"• 🌟 Amenities: {amenity_text}\n"
-            f"• 📌 Location: {location}\n"
-            f"• 🔗 Listing: {url}\n\n"
-        )
-        if payment_url:
-            suggestions = (
-                f"🏠 *{name}* in {city_hint}:\n"
-                f"• 💰 Price per night: {amount} EGP\n"
-                f"• 🛏️ Bedrooms: {bedrooms}\n"
-                f"• 🛁 Bathrooms: {bathrooms}\n"
-                f"• 👥 Accommodates: {guests} guests\n"
-                f"• 🌟 Amenities: {amenity_text}\n"
-                f"• 📌 Location: {location}\n"
-                f"• 🔗 Link: {url}\n\n"
-                f"🔗 [Click here to complete your booking]({payment_url})"
-            )
-        else:
-            suggestions = (
-                f"🏠 *{name}* in {city_hint}:\n"
-                f"• 💰 Price per night: {amount} EGP\n"
-                f"• 🛏️ Bedrooms: {bedrooms}\n"
-                f"• 🛁 Bathrooms: {bathrooms}\n"
-                f"• 👥 Accommodates: {guests} guests\n"
-                f"• 🌟 Amenities: {amenity_text}\n"
-                f"• 📌 Location: {location}\n"
-                f"• 🔗 Link: {url}\n\n"
-                "❌ Sorry, there was an issue generating the payment link. Please try again later."
-            )
-    elif matched_listing:
-        # Non-booking intent, show details
-        amount = matched_listing.get("price", 7000)
-        name = matched_listing.get("name")
-        city_hint = matched_listing.get("city_hint", "Unknown")
-        location = matched_listing.get("location", "N/A")
-        bedrooms = matched_listing.get("bedrooms", "N/A")
-        bathrooms = matched_listing.get("bathrooms", "N/A")
-        guests = matched_listing.get("guests", "N/A")
-        amenities = matched_listing.get("amenities", [])
-        url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
-        amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
-
-        suggestions = (
+        info_text = (
             f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
             f"• 🛏️ Bedrooms: {bedrooms}\n"
@@ -390,33 +356,54 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"• 🌟 Amenities: {amenity_text}\n"
             f"• 📌 Location: {location}\n"
             f"• 🔗 Link: {url}\n\n"
-            "Let me know if you'd like to book this property!"
+            f"{excel_details}\n\n"
+            f"📋 House Rules:\n"
+            "• Check-in: 3:00 PM\n"
+            "• Check-out: 12:00 PM\n"
+            "• Pets: Not allowed\n"
+            "• Parties: Not allowed\n"
+            "• Smoking: Not allowed"
         )
+
+        # If it's a booking intent, also show payment
+        if booking_intent_detected:
+
+            payment_url = Payment(
+                user_name="Guest",
+                email=user_email,
+                room_type=name,
+                checkin=checkin,
+                checkout=checkout,
+                number_of_guests=2,
+                amountInCents=int(amount * 100 * Days)
+            )
+        
+            suggestions = (
+                f"{info_text}\n\n"
+            )
+        else:
+            suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
+
+
     elif listings:
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
     else:
-        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area or name."
+        suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name"
 
-    # Update last referenced listing
-    if matched_listing and sender_id:
-        chat_data["last_referenced_listing"][sender_id] = matched_listing
-        chat_data["last_suggested_listings"][sender_id] = listings
-
-    # Prepare system prompt for OpenAI
     chat_history = ""
     if history:
         for turn in history[:]:
             chat_history += f"{turn['role'].upper()}: {turn['content']}\n"
-
+    # Prepare explicit instructions for GPT to avoid redundant questions
     booking_context = ""
     if booking_intent_detected and matched_listing:
         booking_context = (
-            f"The user intends to book *{matched_listing['name']}* "
-            f"for check-in on {checkin.strftime('%d %b %Y')} and check-out on {checkout.strftime('%d %b %Y')}.\n"
-            f"These dates are already provided and MUST be used. DO NOT ask for dates again.\n"
-            f"Payment link: {payment_url or 'Failed to generate'}.\n"
-            f"Respond with a booking confirmation including the property details and the payment link (if available). "
-            f"Do not request additional details like guest names or contact information unless explicitly needed."
+            f"\nUser has requested to book *{matched_listing['name']}* "
+            f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
+            f"\nUser said something like 'book it' but the listing name was unclear. "
+            f"Use the last shown property in the chat history to infer it."
+            f"A payment link has already been generated. Do not ask for dates again."
+            f"If the user says (book it), (I want this one), or similar phrases, assume they mean the last referenced property unless confirmed otherwise. "
         )
 
     system_message = f"""
@@ -428,33 +415,24 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         Knowledge base:
         {kb_context}
         {suggestions}
-    """.strip()
-    logging.info(f"System prompt: {system_message[:200]}...")
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        response_text = response.choices[0].message.content.strip()
-    except Exception as e:
-        logging.error(f"OpenAI API error: {e}")
-        response_text = suggestions or "Sorry, there was an issue processing your request. Please try again."
+        """
 
-    # Ensure payment URL is included for booking intent
-    if booking_intent_detected and matched_listing:
-        if payment_url and payment_url not in response_text:
-            response_text = f"{response_text}\n\n🔗 [Click here to complete your booking]({payment_url})"
-        elif not payment_url:
-            response_text = f"{response_text}\n\n❌ Sorry, there was an issue generating the payment link. Please try again later."
-
-    logging.info(f"Generated response: {response_text[:100]}...")
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ],
+        max_tokens=1000,
+        temperature=0.7
+    )
+    response_text = response.choices[0].message.content.strip()
+    # 🔒 Ensure payment URL is included even if LLM doesn't mention it
+    if payment_url and payment_url not in response_text:
+        response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
     return response_text
+
 # ================== EMAIL ==================
 def send_email(to_email, subject, body):
     msg = EmailMessage()
