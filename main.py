@@ -150,27 +150,16 @@ def chatgpt_call(system_prompt, user_prompt, model="gpt-4o", temperature=0, max_
 
 base = """
     You are a professional, friendly, and detail-oriented guest experience assistant  
-
-<<<<<<< HEAD
     working for a short-term rental company in Cairo, Egypt.  
-
     Your responsibilities: 
-
-    1. Help users with vacation stays, Airbnb-style bookings, property details, and  
-
-    guest policies. 
+    1. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
 
     2. Use the internal knowledge base and chat history to answer questions accurately. 
 
-    3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
+    3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer to a property, 
+        infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
 
-    to a property, infer the most likely property from the chat history and the  
-
-    last referenced property (variable: last_referenced_listing).  
-
-    - Do NOT ask the user to repeat the property name unless you are  
-
-        absolutely uncertain. 
+    - Do NOT ask the user to repeat the property name unless you are absolutely uncertain. 
 
     - If uncertain, politely confirm the property with the user before proceeding. 
 
@@ -178,28 +167,25 @@ base = """
 
     ensure you always know which property is being discussed. 
 
-    5. Only ignore a question if it is completely unrelated to travel or bookings. 
-working for a short-term rental company in Cairo, Egypt.  
+    5. Only ignore a question if it is completely unrelated to travel or bookings. working for a short-term rental company in Cairo, Egypt.  
 
-Your responsibilities: 
+    6. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
 
-1. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
+    7. Use the internal knowledge base and chat history to answer questions accurately. 
 
-2. Use the internal knowledge base and chat history to answer questions accurately. 
+    8. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
 
-3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
-
-    to a property, infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
+        to a property, infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
 
     - Do NOT ask the user to repeat the property name unless you are absolutely uncertain. 
 
-- If uncertain, politely confirm the property with the user before proceeding. 
+    - If uncertain, politely confirm the property with the user before proceeding. 
 
-4. When displaying listings, update the last_referenced_listing variable to  
+    9. When displaying listings, update the last_referenced_listing variable to  
 
-ensure you always know which property is being discussed. 
+    ensure you always know which property is being discussed. 
 
-5. Only ignore a question if it is completely unrelated to travel or bookings. 
+    10. Only ignore a question if it is completely unrelated to travel or bookings. 
     """
 
 def find_matching_listings(query, guests=2):
@@ -237,7 +223,7 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None):
+def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None, chat_data=None):
     if not checkin or not checkout:
         today = datetime.today().date()
         checkin = today + timedelta(days=3)
@@ -274,9 +260,9 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     )
     # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
     if not matched_listing and sender_id and "@" not in sender_id:
-        from telegram.ext import ChatData  # optional, just clarifies context
-        chat_data = app.chat_data
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+        if chat_data:
+            matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+
     # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
     if not matched_listing and sender_id and "@" not in sender_id:
         matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
@@ -607,8 +593,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sender_id=context.chat_data["user_email"][user_id],
             history=context.chat_data["chat_history"][user_id],
             checkin=checkin,
-            checkout=checkout
+            checkout=checkout,
+            chat_data=context.chat_data
         )
+
 
         # 🔁 Attempt to extract last referenced listing name from reply
         for listing in listings_data:
