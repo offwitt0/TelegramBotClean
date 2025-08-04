@@ -223,6 +223,13 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
+def extract_option_index(text):
+    match = re.search(r"\b(first|second|third|fourth)\b", text.lower())
+    mapping = {"first": 0, "second": 1, "third": 2, "fourth": 3}
+    if match:
+        return mapping.get(match.group(1))
+    return None
+
 def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None, chat_data=None):
     if not checkin or not checkout:
         today = datetime.today().date()
@@ -258,6 +265,14 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
+    # 👀 Try to match "second option", "third option", etc.
+    if not matched_listing and sender_id and "@" not in sender_id:
+        option_index = extract_option_index(user_message)
+        if option_index is not None:
+            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id)
+            if recent_listings and option_index < len(recent_listings):
+                matched_listing = recent_listings[option_index]
+
     # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
     if not matched_listing and sender_id and "@" not in sender_id:
         if chat_data:
@@ -284,6 +299,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     if matched_listing:
         listing_name_lower = matched_listing['name'].strip().lower()
         extra_excel_info = excel_mapping.get(listing_name_lower)
+    # Save last suggested listings per sender for coreference resolution
+    if matched_listing:
+        chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
+
 
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
