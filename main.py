@@ -362,6 +362,8 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         
             suggestions = (
                 f"{info_text}\n\n"
+                f"✅ Your booking has been prepared for *{name}* from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
+                f"🔗 [Click here to complete your booking]({payment_url})"
             )
         else:
             suggestions = f"{info_text}\n\nLet me know if you'd like to book this property!"
