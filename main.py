@@ -493,7 +493,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
     # Initialize chat_data keys safely if missing
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         if key not in context.chat_data:
             context.chat_data[key] = {}
     print(f"\n=== DEBUG: Current State ===")
@@ -503,7 +503,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Last Msg: {user_message[:50]}...")
 
     # Initialize chat data structures
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         context.chat_data.setdefault(key, {})
 
     # Inactivity check (existing code remains the same)
