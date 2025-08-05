@@ -433,6 +433,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     # 🔒 Ensure payment URL is included even if LLM doesn't mention it
     if payment_url and payment_url not in response_text:
         response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
+    print(f"\n🤖 Bot response to {sender_id}: {response}\n")
     return response_text
 
 # ================== EMAIL ==================
