@@ -260,25 +260,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     listings = find_matching_listings(user_message, guests=2)
 
-    def detect_booking_intent_with_gpt(message: str) -> bool:
-        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
-        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
-            Message: "{message}"
-            Answer with only 'yes' or 'no'."""
-        try:
-            result = chatgpt_call(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=3,  # very short, to avoid long answers
-                temperature=0
-            )
-            answer = result.strip().lower()
-            return answer == "yes"
-        except Exception as e:
-            print(f"❌ Error detecting booking intent: {e}")
-            return False
-
-
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
@@ -296,10 +277,38 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         if chat_data:
             matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
 
-    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
-    if not matched_listing and sender_id and "@" not in sender_id:
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
     booking_intent_detected = detect_booking_intent_with_gpt(user_message)
+    # ✅ Fix 3 — Direct fallback if booking intent is clear and data is available
+    if booking_intent_detected and matched_listing and checkin and checkout:
+        amount = matched_listing.get("price", 7000)
+        name = matched_listing.get("name")
+        url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
+        Days = (checkout - checkin).days
+
+        user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+
+        payment_url = Payment(
+            user_name="Guest",
+            email=user_email,
+            room_type=name,
+            checkin=checkin,
+            checkout=checkout,
+            number_of_guests=2,
+            amountInCents=int(amount * 100 * Days)
+        )
+
+        fallback_response = (
+            f"Perfect! You're booking *{name}* from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n\n"
+            f"🔗 [Click here to complete your booking]({payment_url})"
+        )
+
+        print("=== 🔁 Fallback Booking Response Triggered ===")
+        print(f"User ID: {sender_id}")
+        print(f"Matched Listing: {name}")
+        print(f"\n🤖 Bot response: {fallback_response}")
+        print("=============================================")
+
+        return fallback_response
 
     # Handle vague references if booking intent and no match
     if not matched_listing and booking_intent_detected and history:
@@ -428,11 +437,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         temperature=0.7
     )
     response_text = response.choices[0].message.content.strip()
-    print(f"\n🤖 Bot response to {sender_id}: {response_text}\n")
     # 🔒 Ensure payment URL is included even if LLM doesn't mention it
     if payment_url and payment_url not in response_text:
         response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
-    print(f"\n🤖 Bot response to {sender_id}: {response}\n")
+    print(f"\n🤖 Bot response to {sender_id}: {response_text}\n")
     return response_text
 
 # ================== EMAIL ==================
