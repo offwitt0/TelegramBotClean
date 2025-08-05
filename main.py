@@ -41,17 +41,18 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
     print("🔍 Payload to API:", data)
     try:
         response = requests.post(url, json=data)
-        print(f"DEBUG: Payment API - Status Code: {response.status_code}, Response: {response.text}")
+        print("📨 Status Code:", response.status_code)
+        print("📨 Response Text:", response.text)
+
         if response.status_code == 200:
             session_url = response.json().get("sessionURL")
             print("✅ Stripe Session URL:", session_url)
             return session_url
         else:
-            print(f"❌ Payment API failed with status {response.status_code}")
             return None
     except Exception as e:
         logging.error("Payment error: %s", e)
-        print(f"❌ Payment exception: {e}")
+        print("❌ Exception occurred:", e)
         return None
 
 def extract_dates_from_message(message):
@@ -223,8 +224,8 @@ def find_matching_listings(query, guests=2):
         return []
 
 def extract_option_index(text):
-    match = re.search(r"\b(first|second|third|fourth|fifth)\b", text.lower())
-    mapping = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4}
+    match = re.search(r"\b(first|second|third|fourth)\b", text.lower())
+    mapping = {"first": 0, "second": 1, "third": 2, "fourth": 3}
     if match:
         return mapping.get(match.group(1))
     return None
@@ -271,8 +272,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         if option_index is not None:
             recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id)
             if recent_listings and option_index < len(recent_listings):
-                # Debug: Log the selected listing
-                print(f"DEBUG: Option index {option_index}, Recent listings: {recent_listings}")
                 matched_listing = next(
                     (l for l in listings_data if l["name"] in recent_listings[option_index]),
                     None
@@ -283,7 +282,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     # Save last suggested listings
     if listings and sender_id:
         chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
-        print(f"DEBUG: Saved last_suggested_listings for {sender_id}: {listings}")
 
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
@@ -316,7 +314,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             room_type=name,
             checkin=checkin,
             checkout=checkout,
-            number_of_guests=2,
+            number_of_guests=2,  # Default, adjust if user specifies
             amountInCents=int(amount * 100 * Days)
         )
 
@@ -343,7 +341,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         # Update last referenced listing
         if sender_id and "@" not in sender_id:
             chat_data["last_referenced_listing"][sender_id] = matched_listing
-            print(f"DEBUG: Updated last_referenced_listing for {sender_id}: {matched_listing['name']}")
 
         return response_text
 
@@ -551,10 +548,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["chat_history"].setdefault(user_id, []).append(
         {"role": "user", "content": user_message}
     )
-    print(f"DEBUG: User {user_id} email: {context.chat_data.get('user_email', {}).get(user_id)}")
-    print(f"DEBUG: User {user_id} dates: {context.chat_data.get('checkin_dates', {}).get(user_id)}")
-    print(f"DEBUG: Last referenced listing: {context.chat_data.get('last_referenced_listing', {}).get(user_id)}")
-
+    
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, 
         action="typing"
