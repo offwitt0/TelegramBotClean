@@ -400,12 +400,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     booking_context = ""
     if booking_intent_detected and matched_listing:
         booking_context = (
-            f"\nUser has requested to book *{matched_listing['name']}* "
+            f"\nThe user has clearly expressed intent to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
-            f"\nUser said something like 'book it' but the listing name was unclear. "
-            f"Use the last shown property in the chat history to infer it."
-            f"A payment link has already been generated. Do not ask for dates again."
-            f"If the user says (book it), (I want this one), or similar phrases, assume they mean the last referenced property unless confirmed otherwise. "
+            f"DO NOT ask for name, email, or dates. A payment link has already been generated.\n"
+            f"Just confirm the booking and show the link:\n{payment_url}\n"
         )
 
     system_message = f"""
@@ -430,6 +428,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         temperature=0.7
     )
     response_text = response.choices[0].message.content.strip()
+    print(f"\n🤖 Bot response to {sender_id}: {response_text}\n")
     # 🔒 Ensure payment URL is included even if LLM doesn't mention it
     if payment_url and payment_url not in response_text:
         response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
