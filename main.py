@@ -317,10 +317,6 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     if matched_listing:
         listing_name_lower = matched_listing['name'].strip().lower()
         extra_excel_info = excel_mapping.get(listing_name_lower)
-    # Save last suggested listings per sender for coreference resolution
-    if matched_listing:
-        chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
-
 
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
@@ -329,6 +325,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     if matched_listing:
         # Common listing info
+        chat_data.setdefault("last_referenced_listing", {})[sender_id] = matched_listing
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
         city_hint = matched_listing.get("city_hint")
@@ -364,7 +361,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             "• Parties: Not allowed\n"
             "• Smoking: Not allowed"
         )
-
+    
         # If it's a booking intent, also show payment
         if booking_intent_detected:
 
@@ -386,7 +383,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
 
     elif listings:
+        chat_data.setdefault("last_suggested_listings", {})[sender_id] = [
+            l for l in listings_data
+            if any(l["name"] in s for s in listings)
+        ]
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name"
 
