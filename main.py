@@ -256,14 +256,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     relevant_docs = vectorstore.similarity_search(user_message, k=3)
     kb_context = "\n\n".join([doc.page_content for doc in relevant_docs])
-
-    # Only call find_matching_listings if the message is a search query
-    listings = []
-    if any(keyword in user_message.lower() for keyword in ["place", "places", "listing", "listings", "where", "area", "city"]):
-        listings = find_matching_listings(user_message, guests=2)
-        if listings and sender_id:
-            chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
-            print(f"DEBUG: Saved last_suggested_listings for {sender_id}: {listings}")
+    listings = find_matching_listings(user_message, guests=2)
 
     # Detect booking intent
     booking_intent_detected = detect_booking_intent_with_gpt(user_message)
@@ -276,22 +269,26 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     if not matched_listing and sender_id and "@" not in sender_id:
         option_index = extract_option_index(user_message)
         if option_index is not None:
-            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id, [])
+            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id)
             if recent_listings and option_index < len(recent_listings):
+                # Debug: Log the selected listing
                 print(f"DEBUG: Option index {option_index}, Recent listings: {recent_listings}")
-                # Extract listing name from the string (before the rating)
-                listing_name = recent_listings[option_index].split("(⭐")[0].strip()
                 matched_listing = next(
-                    (l for l in listings_data if l["name"] == listing_name),
+                    (l for l in listings_data if l["name"] in recent_listings[option_index]),
                     None
                 )
-                print(f"DEBUG: Selected listing for option {option_index}: {matched_listing['name'] if matched_listing else 'None'}")
         if not matched_listing:
             matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+
+    # Save last suggested listings
+    if listings and sender_id:
+        chat_data.setdefault("last_suggested_listings", {})[sender_id] = listings
+        print(f"DEBUG: Saved last_suggested_listings for {sender_id}: {listings}")
 
     user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
 
     if booking_intent_detected and matched_listing:
+        # Use stored context to avoid asking for known details
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
         city_hint = matched_listing.get("city_hint")
@@ -303,6 +300,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
         url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
         amenity_text = ", ".join(amenities[:5]) + ("..." if len(amenities) > 5 else "")
 
+        # Get extra details from excel_mapping
         excel_details = ""
         listing_name_lower = matched_listing['name'].strip().lower()
         extra_excel_info = excel_mapping.get(listing_name_lower)
@@ -311,6 +309,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
                 if key.lower() != 'name':
                     excel_details += f"• {key.title()}: {value}\n"
 
+        # Generate payment URL
         payment_url = Payment(
             user_name="Guest",
             email=user_email,
@@ -321,6 +320,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             amountInCents=int(amount * 100 * Days)
         )
 
+        # Build response
         response_text = (
             f"🏠 *{name}* in {city_hint}:\n"
             f"• 💰 Price per night: {amount} EGP\n"
@@ -340,12 +340,14 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             f"🔗 [Click here to complete your booking]({payment_url})" if payment_url else "❌ Sorry, there was an issue generating the payment link. Please try again later."
         )
 
+        # Update last referenced listing
         if sender_id and "@" not in sender_id:
             chat_data["last_referenced_listing"][sender_id] = matched_listing
             print(f"DEBUG: Updated last_referenced_listing for {sender_id}: {matched_listing['name']}")
 
         return response_text
 
+    # Fallback for no matched listing or no booking intent
     suggestions = "\n\n".join(listings) if listings else "I'm sorry, I couldn't find matching listings. Please specify the property name or try a different area."
     system_message = f"""
         {base}
@@ -468,6 +470,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     now = datetime.utcnow()
     user_message = update.message.text
     user_id = str(update.effective_user.id)
+    # Initialize chat_data keys safely if missing
     for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         if key not in context.chat_data:
             context.chat_data[key] = {}
@@ -477,18 +480,35 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Has Dates: {user_id in context.chat_data['checkin_dates']}")
     print(f"Last Msg: {user_message[:50]}...")
 
+    # Initialize chat data structures
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
+        context.chat_data.setdefault(key, {})
+
+    # Inactivity check (existing code remains the same)
+    
+    # Update activity tracking
     context.chat_data["last_active"][user_id] = now
     context.chat_data["all_messages"].setdefault(user_id, []).append(update.message.message_id)
+    
     print(f"💬 Message from {user_id}: {user_message}")
 
+    # STEP 1: Email collection
     if user_id not in context.chat_data["user_email"]:
         clean_email = user_message.strip().lower()
+        
         if not is_valid_email(clean_email):
-            await update.message.reply_text("Please enter your email only")
+            await update.message.reply_text(
+                "Please enter your email only"
+            )
             return
+        
+        # Save email and confirm
         context.chat_data["user_email"][user_id] = clean_email
         save_user_email_mapping(user_id, clean_email)
+        
+        # Send confirmation and date request
         await update.message.reply_text(f"✅ Email {clean_email} saved!")
+
         await update.message.reply_text(
             f"Please provide your travel dates\n"
             "Examples:\n"
@@ -496,11 +516,15 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Sep 20 to 27\n"
             "• 20/09 to 27/09"
         )
-        return
+        return  
 
+    # STEP 2: Date collection
     if user_id not in context.chat_data["checkin_dates"]:
+        # First try direct extraction
         checkin, checkout = extract_dates_from_message(user_message)
+        
         if not checkin or not checkout:
+            # If no dates found, ask clearly for them
             reply = await update.message.reply_text(
                 "📆 To help you best, I need your travel dates.\n\n"
                 "Please specify your check-in and check-out dates like:\n"
@@ -510,15 +534,20 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             context.chat_data["all_messages"][user_id].append(reply.message_id)
             return
+        
+        # Save valid dates
         context.chat_data["checkin_dates"][user_id] = {
             "checkin": checkin,
             "checkout": checkout
         }
+        
+        # Confirm dates and invite questions
         await update.message.reply_text(f"✅ Got your dates: {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}")
         reply = await update.message.reply_text(f"How can I assist you with your stay?")
         context.chat_data["all_messages"][user_id].append(reply.message_id)
         return
 
+    # STEP 3: Normal conversation
     context.chat_data["chat_history"].setdefault(user_id, []).append(
         {"role": "user", "content": user_message}
     )
@@ -534,6 +563,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         checkin = context.chat_data["checkin_dates"][user_id]["checkin"]
         checkout = context.chat_data["checkin_dates"][user_id]["checkout"]
+        
         reply_text = generate_response(
             user_message,
             sender_id=context.chat_data["user_email"][user_id],
@@ -542,8 +572,14 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             checkout=checkout,
             chat_data=context.chat_data
         )
-        if matched_listing := context.chat_data.get("last_referenced_listing", {}).get(user_id):
-            context.chat_data["last_referenced_listing"][user_id] = matched_listing
+
+
+        # 🔁 Attempt to extract last referenced listing name from reply
+        for listing in listings_data:
+            if listing["name"] in reply_text:
+                context.chat_data["last_referenced_listing"][user_id] = listing
+                break
+
         reply_msg = await update.message.reply_text(reply_text)
         context.chat_data["all_messages"][user_id].append(reply_msg.message_id)
         context.chat_data["chat_history"][user_id].append(
@@ -560,21 +596,20 @@ app.add_handler(CommandHandler("reset", reset))
 # ================== FASTAPI ==================
 fastapi_app = FastAPI()
 
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(fastapi_app):
+@fastapi_app.on_event("startup")
+async def start_all():
     print("📧 Email listener running...")
     asyncio.create_task(check_email_loop())
+
     print("🤖 Telegram bot initializing...")
     await app.initialize()
     await app.start()
     asyncio.create_task(app.updater.start_polling())
-    yield
+
+@fastapi_app.on_event("shutdown")
+async def shutdown_all():
     print("⛔ Shutting down bot...")
     await app.stop()
-
-fastapi_app.lifespan = lifespan
 
 fastapi_app.add_middleware(
     CORSMiddleware,
