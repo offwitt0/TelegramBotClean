@@ -41,18 +41,17 @@ def Payment(user_name, email, room_type, checkin, checkout, number_of_guests, am
     print("🔍 Payload to API:", data)
     try:
         response = requests.post(url, json=data)
-        print("📨 Status Code:", response.status_code)
-        print("📨 Response Text:", response.text)
-
+        print(f"DEBUG: Payment API - Status Code: {response.status_code}, Response: {response.text}")
         if response.status_code == 200:
             session_url = response.json().get("sessionURL")
             print("✅ Stripe Session URL:", session_url)
             return session_url
         else:
+            print(f"❌ Payment API failed with status {response.status_code}")
             return None
     except Exception as e:
         logging.error("Payment error: %s", e)
-        print("❌ Exception occurred:", e)
+        print(f"❌ Payment exception: {e}")
         return None
 
 def extract_dates_from_message(message):
@@ -340,7 +339,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
         # Update last referenced listing
         if sender_id and "@" not in sender_id:
-            chat_data["last_referenced_listing"][sender_id] = matched_listing
+            chat_data["last_referenced_listing"][user_id] = matched_listing
 
         return response_text
 
@@ -548,7 +547,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["chat_history"].setdefault(user_id, []).append(
         {"role": "user", "content": user_message}
     )
-    
+    print(f"DEBUG: User {user_id} email: {context.chat_data.get('user_email', {}).get(user_id)}")
+    print(f"DEBUG: User {user_id} dates: {context.chat_data.get('checkin_dates', {}).get(user_id)}")
+    print(f"DEBUG: Last referenced listing: {context.chat_data.get('last_referenced_listing', {}).get(user_id)}")
+
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, 
         action="typing"
