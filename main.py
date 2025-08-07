@@ -133,7 +133,7 @@ df = pd.read_excel("AnQa.xlsx")
 excel_mapping = {
     str(row.get("name", "")).strip().lower(): row.to_dict()
     for _, row in df.iterrows()
-    if str(row.get("name", "")).strip()  # ensure it's not empty
+    if str(row.get("name", "")).strip()
 }
 
 def chatgpt_call(system_prompt, user_prompt, model="gpt-4o", temperature=0, max_tokens=300):
@@ -150,34 +150,42 @@ def chatgpt_call(system_prompt, user_prompt, model="gpt-4o", temperature=0, max_
 
 base = """
     You are a professional, friendly, and detail-oriented guest experience assistant  
+    working for a short-term rental company in Cairo, Egypt.  
+    Your responsibilities: 
+    1. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
 
-working for a short-term rental company in Cairo, Egypt.  
+    2. Use the internal knowledge base and chat history to answer questions accurately. 
 
-Your responsibilities: 
+    3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer to a property, 
+        infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
 
-1. Help users with vacation stays, Airbnb-style bookings, property details, and  
+    - Do NOT ask the user to repeat the property name unless you are absolutely uncertain. 
 
-   guest policies. 
+    - If uncertain, politely confirm the property with the user before proceeding. 
 
-2. Use the internal knowledge base and chat history to answer questions accurately. 
+    4. When displaying listings, update the last_referenced_listing variable to  
 
-3. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
+    ensure you always know which property is being discussed. 
 
-   to a property, infer the most likely property from the chat history and the  
+    5. Only ignore a question if it is completely unrelated to travel or bookings. working for a short-term rental company in Cairo, Egypt.  
 
-   last referenced property (variable: last_referenced_listing).  
+    6. Help users with vacation stays, Airbnb-style bookings, property details, and guest policies. 
 
-   - Do NOT ask the user to repeat the property name unless you are  
+    7. Use the internal knowledge base and chat history to answer questions accurately. 
 
-     absolutely uncertain. 
+    8. If a user uses pronouns (e.g., it, that one, this) or vague expressions to refer  
 
-   - If uncertain, politely confirm the property with the user before proceeding. 
+        to a property, infer the most likely property from the chat history and the last referenced property (variable: last_referenced_listing).  
 
-4. When displaying listings, update the last_referenced_listing variable to  
+    - Do NOT ask the user to repeat the property name unless you are absolutely uncertain. 
 
-   ensure you always know which property is being discussed. 
+    - If uncertain, politely confirm the property with the user before proceeding. 
 
-5. Only ignore a question if it is completely unrelated to travel or bookings. 
+    9. When displaying listings, update the last_referenced_listing variable to  
+
+    ensure you always know which property is being discussed. 
+
+    10. Only ignore a question if it is completely unrelated to travel or bookings. 
     """
 
 def find_matching_listings(query, guests=2):
@@ -215,7 +223,32 @@ def find_matching_listings(query, guests=2):
     else:
         return []
 
-def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None):
+def extract_option_index(text):
+    match = re.search(r"\b(first|second|third|fourth)\b", text.lower())
+    mapping = {"first": 0, "second": 1, "third": 2, "fourth": 3}
+    if match:
+        return mapping.get(match.group(1))
+    return None
+
+def detect_booking_intent_with_gpt(message: str) -> bool:
+        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
+        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
+            Message: "{message}"
+            Answer with only 'yes' or 'no'."""
+        try:
+            result = chatgpt_call(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=3,
+                temperature=0
+            )
+            answer = result.strip().lower()
+            return answer == "yes"
+        except Exception as e:
+            print(f"❌ Error detecting booking intent: {e}")
+            return False
+
+def generate_response(user_message, sender_id=None, history=None, checkin=None, checkout=None, chat_data=None):
     if not checkin or not checkout:
         today = datetime.today().date()
         checkin = today + timedelta(days=3)
@@ -227,41 +260,55 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     listings = find_matching_listings(user_message, guests=2)
 
-    def detect_booking_intent_with_gpt(message: str) -> bool:
-        system_prompt = "You are an intent classifier. Answer ONLY with 'yes' or 'no'."
-        user_prompt = f"""Determine if the user wants to proceed with a booking based on the message below.
-
-    Message: "{message}"
-
-    Answer with only 'yes' or 'no'."""
-
-        try:
-            result = chatgpt_call(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=3,  # very short, to avoid long answers
-                temperature=0
-            )
-            answer = result.strip().lower()
-            return answer == "yes"
-        except Exception as e:
-            print(f"❌ Error detecting booking intent: {e}")
-            return False
-
-
     matched_listing = next(
         (l for l in listings_data if l["name"].lower() in user_message.lower()),
         None
     )
+    # 👀 Try to match "second option", "third option", etc.
+    if not matched_listing and sender_id and "@" not in sender_id:
+        option_index = extract_option_index(user_message)
+        if option_index is not None:
+            recent_listings = chat_data.get("last_suggested_listings", {}).get(sender_id)
+            if recent_listings and option_index < len(recent_listings):
+                matched_listing = recent_listings[option_index]
+
     # 👀 Fall back to last referenced listing if message is vague and it's a Telegram user
     if not matched_listing and sender_id and "@" not in sender_id:
-        from telegram.ext import ChatData  # optional, just clarifies context
-        chat_data = app.chat_data
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
-    # 👀 If listing not matched but user seems to refer to a previous one, fallback to last referenced listing
-    if not matched_listing and sender_id and "@" not in sender_id:
-        matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+        if chat_data:
+            matched_listing = chat_data.get("last_referenced_listing", {}).get(sender_id)
+
     booking_intent_detected = detect_booking_intent_with_gpt(user_message)
+    # ✅ Fix 3 — Direct fallback if booking intent is clear and data is available
+    if booking_intent_detected and matched_listing and checkin and checkout:
+        amount = matched_listing.get("price", 7000)
+        name = matched_listing.get("name")
+        url = matched_listing.get("url") or f"https://anqakhans.holidayfuture.com/listings/{matched_listing['id']}"
+        Days = (checkout - checkin).days
+
+        user_email = sender_id if sender_id and "@" in sender_id else "guest@example.com"
+
+        payment_url = Payment(
+            user_name="Guest",
+            email=user_email,
+            room_type=name,
+            checkin=checkin,
+            checkout=checkout,
+            number_of_guests=2,
+            amountInCents=int(amount * 100 * Days)
+        )
+
+        fallback_response = (
+            f"Perfect! You're booking *{name}* from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n\n"
+            f"🔗 [Click here to complete your booking]({payment_url})"
+        )
+
+        print("=== 🔁 Fallback Booking Response Triggered ===")
+        print(f"User ID: {sender_id}")
+        print(f"Matched Listing: {name}")
+        print(f"\n🤖 Bot response: {fallback_response}")
+        print("=============================================")
+
+        return fallback_response
 
     # Handle vague references if booking intent and no match
     if not matched_listing and booking_intent_detected and history:
@@ -287,6 +334,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
     if matched_listing:
         # Common listing info
+        chat_data.setdefault("last_referenced_listing", {})[sender_id] = matched_listing
         amount = matched_listing.get("price", 7000)
         name = matched_listing.get("name")
         city_hint = matched_listing.get("city_hint")
@@ -322,7 +370,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
             "• Parties: Not allowed\n"
             "• Smoking: Not allowed"
         )
-
+    
         # If it's a booking intent, also show payment
         if booking_intent_detected:
 
@@ -344,7 +392,12 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
 
 
     elif listings:
+        chat_data.setdefault("last_suggested_listings", {})[sender_id] = [
+            l for l in listings_data
+            if any(l["name"] in s for s in listings)
+        ]
         suggestions = "\n\nHere are some great options for you:\n" + "\n".join(listings)
+
     else:
         suggestions = "\n\nI'm sorry, I couldn't find matching listings. Please try a different area, name"
 
@@ -356,12 +409,10 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     booking_context = ""
     if booking_intent_detected and matched_listing:
         booking_context = (
-            f"\nUser has requested to book *{matched_listing['name']}* "
+            f"\nThe user has clearly expressed intent to book *{matched_listing['name']}* "
             f"from {checkin.strftime('%d %b %Y')} to {checkout.strftime('%d %b %Y')}.\n"
-            f"\nUser said something like 'book it' but the listing name was unclear. "
-            f"Use the last shown property in the chat history to infer it."
-            f"A payment link has already been generated. Do not ask for dates again."
-            f"If the user says (book it), (I want this one), or similar phrases, assume they mean the last referenced property unless confirmed otherwise. "
+            f"DO NOT ask for name, email, or dates. A payment link has already been generated.\n"
+            f"Just confirm the booking and show the link:\n{payment_url}\n"
         )
 
     system_message = f"""
@@ -389,6 +440,7 @@ def generate_response(user_message, sender_id=None, history=None, checkin=None, 
     # 🔒 Ensure payment URL is included even if LLM doesn't mention it
     if payment_url and payment_url not in response_text:
         response_text += f"\n\n🔗 [Click here to complete your booking]({payment_url})"
+    print(f"\n🤖 Bot response to {sender_id}: {response_text}\n")
     return response_text
 
 # ================== EMAIL ==================
@@ -493,7 +545,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = str(update.effective_user.id)
     # Initialize chat_data keys safely if missing
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         if key not in context.chat_data:
             context.chat_data[key] = {}
     print(f"\n=== DEBUG: Current State ===")
@@ -503,7 +555,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Last Msg: {user_message[:50]}...")
 
     # Initialize chat data structures
-    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages"]:
+    for key in ["chat_history", "user_email", "checkin_dates", "last_active", "all_messages", "last_referenced_listing"]:
         context.chat_data.setdefault(key, {})
 
     # Inactivity check (existing code remains the same)
@@ -588,8 +640,10 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sender_id=context.chat_data["user_email"][user_id],
             history=context.chat_data["chat_history"][user_id],
             checkin=checkin,
-            checkout=checkout
+            checkout=checkout,
+            chat_data=context.chat_data
         )
+
 
         # 🔁 Attempt to extract last referenced listing name from reply
         for listing in listings_data:
@@ -610,7 +664,6 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
 app.add_handler(CommandHandler("reset", reset))
-
 # ================== FASTAPI ==================
 fastapi_app = FastAPI()
 
